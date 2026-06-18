@@ -18,13 +18,13 @@ need_cmd() {
 usage() {
   echo "用法：$(basename "$0") [--clean]"
   echo
-  echo "  --clean    删除 Plane 配置文件：$CONFIG_FILE"
+  echo "  --clean    删除Plane配置文件：$CONFIG_FILE"
 }
 
 clean_plane_config() {
   if [[ -f "$CONFIG_FILE" ]]; then
     rm -f "$CONFIG_FILE"
-    echo "已删除 Plane 配置文件：$CONFIG_FILE"
+    echo "已删除Plane配置文件：$CONFIG_FILE"
   else
     echo "Plane 配置文件不存在，无需清理：$CONFIG_FILE"
   fi
@@ -55,7 +55,7 @@ prompt_plane_config_if_missing() {
   local changed=0
 
   if [[ -z "${PLANE_SERVER:-}" ]]; then
-    read -rp "请输入 Plane 域名[默认值：${DEFAULT_PLANE_SERVER}]：" PLANE_SERVER
+    read -rp "请输入Plane域名[默认值：${DEFAULT_PLANE_SERVER}]：" PLANE_SERVER
     PLANE_SERVER="${PLANE_SERVER:-$DEFAULT_PLANE_SERVER}"
     PLANE_SERVER=$(normalize_server "$PLANE_SERVER")
     changed=1
@@ -65,21 +65,21 @@ prompt_plane_config_if_missing() {
 
   if [[ -z "${PLANE_PAT:-}" ]]; then
     while [[ -z "${PLANE_PAT:-}" ]]; do
-      read -rsp "请输入 Plane 个人访问令牌（Personal Access Token）：" PLANE_PAT
+      read -rsp "请输入Plane个人访问令牌（Personal Access Token）：" PLANE_PAT
       echo
     done
     changed=1
   fi
 
   if [[ -z "${PLANE_WORKSPACE:-}" ]]; then
-    read -rp "请输入 Plane 工作区标识，例如 my-team：" PLANE_WORKSPACE
+    read -rp "请输入Plane工作空间标识（打开Plane，如果浏览器地址为 https://plane.openai36.com/qsyy/....，则工作空间标识为 qsyy）：" PLANE_WORKSPACE
     [[ -n "$PLANE_WORKSPACE" ]] || die "PLANE_WORKSPACE 不能为空。"
     changed=1
   fi
 
   if [[ "$changed" -eq 1 || ! -f "$CONFIG_FILE" ]]; then
     save_plane_config
-    echo "已保存 Plane 配置到 $CONFIG_FILE"
+    echo "已保存Plane配置到 $CONFIG_FILE"
   fi
 }
 
@@ -132,7 +132,7 @@ PY
     return
   fi
 
-  die "缺少 jq、python3 或 python，无法解析 Plane API 响应。"
+  die "缺少 jq、python3 或 python，无法解析PlaneAPI 响应。"
 }
 
 fetch_plane_work_item_title() {
@@ -146,7 +146,7 @@ fetch_plane_work_item_title() {
     -H "X-API-Key: $PLANE_PAT" \
     "$api_url") || {
     rm -f "$tmp_body"
-    die "调用 Plane API 失败。"
+    die "调用PlaneAPI 失败。"
   }
 
   if [[ ! "$http_status" =~ ^2 ]]; then
@@ -199,11 +199,11 @@ echo "同步 $REMOTE/$BASE_BRANCH..."
 git fetch "$REMOTE"
 git pull --ff-only "$REMOTE" "$BASE_BRANCH"
 
-echo "加载 Plane 配置..."
+echo "加载Plane配置..."
 load_plane_config
 
 echo
-read -rp "请输入 Plane 工作项编号，例如 QSYY-123：" WORK_ITEM
+read -rp "请输入Plane工作项编号，例如 QSYY-123：" WORK_ITEM
 WORK_ITEM="${WORK_ITEM^^}"
 
 if [[ ! "$WORK_ITEM" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
@@ -220,7 +220,7 @@ if git ls-remote --exit-code --heads "$REMOTE" "$BRANCH_NAME" >/dev/null 2>&1; t
   die "远程分支已存在：$REMOTE/$BRANCH_NAME"
 fi
 
-echo "获取 Plane 工作项信息..."
+echo "获取Plane工作项信息..."
 WORK_ITEM_TITLE=$(fetch_plane_work_item_title "$WORK_ITEM")
 
 echo "创建分支 $BRANCH_NAME..."
