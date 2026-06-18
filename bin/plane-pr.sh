@@ -4,6 +4,7 @@ set -euo pipefail
 BASE_BRANCH="master"
 REMOTE="origin"
 CONFIG_FILE="${PLANE_CONFIG_FILE:-$HOME/.plane}"
+DEFAULT_PLANE_SERVER="https://plane.openai36.com"
 
 die() {
   echo "错误：$*" >&2
@@ -54,8 +55,8 @@ prompt_plane_config_if_missing() {
   local changed=0
 
   if [[ -z "${PLANE_SERVER:-}" ]]; then
-    read -rp "请输入 Plane 域名，例如 https://api.plane.so：" PLANE_SERVER
-    [[ -n "$PLANE_SERVER" ]] || die "PLANE_SERVER 不能为空。"
+    read -rp "请输入 Plane 域名，例如 ${DEFAULT_PLANE_SERVER}，直接回车使用默认值：" PLANE_SERVER
+    PLANE_SERVER="${PLANE_SERVER:-$DEFAULT_PLANE_SERVER}"
     PLANE_SERVER=$(normalize_server "$PLANE_SERVER")
     changed=1
   else
@@ -63,9 +64,10 @@ prompt_plane_config_if_missing() {
   fi
 
   if [[ -z "${PLANE_PAT:-}" ]]; then
-    read -rsp "请输入 Plane 个人访问令牌（Personal Access Token）：" PLANE_PAT
-    echo
-    [[ -n "$PLANE_PAT" ]] || die "PLANE_PAT 不能为空。"
+    while [[ -z "${PLANE_PAT:-}" ]]; do
+      read -rsp "请输入 Plane 个人访问令牌（Personal Access Token）：" PLANE_PAT
+      echo
+    done
     changed=1
   fi
 
