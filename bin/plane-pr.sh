@@ -55,7 +55,7 @@ prompt_plane_config_if_missing() {
   local changed=0
 
   if [[ -z "${PLANE_SERVER:-}" ]]; then
-    read -rp "请输入 Plane 域名，例如 ${DEFAULT_PLANE_SERVER}，直接回车使用默认值：" PLANE_SERVER
+    read -rp "请输入 Plane 域名，[${DEFAULT_PLANE_SERVER}]：" PLANE_SERVER
     PLANE_SERVER="${PLANE_SERVER:-$DEFAULT_PLANE_SERVER}"
     PLANE_SERVER=$(normalize_server "$PLANE_SERVER")
     changed=1
