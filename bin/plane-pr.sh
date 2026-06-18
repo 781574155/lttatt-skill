@@ -79,7 +79,7 @@ prompt_plane_config_if_missing() {
 
   if [[ -z "${PLANE_PAT:-}" ]]; then
     while [[ -z "${PLANE_PAT:-}" ]]; do
-      read -rsp "请输入Plane个人访问令牌（Personal Access Token）：" PLANE_PAT
+      read -rsp "请输入Plane个人访问令牌（Personal Access Token，在Plane的个人设置中添加）：" PLANE_PAT
       echo
     done
     changed=1
