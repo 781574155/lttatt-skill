@@ -29,6 +29,12 @@ usage() {
   echo "  --clean    删除Plane配置文件：$CONFIG_FILE"
 }
 
+print_intro() {
+  echo "功能介绍："
+  echo "  根据 Plane 工作项创建 plane/工作项编号 分支，提交 init 空提交，推送后创建以工作项标题命名的 GitHub 草稿 PR。"
+  echo
+}
+
 clean_plane_config() {
   if [[ -f "$CONFIG_FILE" ]]; then
     rm -f "$CONFIG_FILE"
@@ -163,6 +169,8 @@ if [[ "$#" -gt 0 ]]; then
   usage
   exit 1
 fi
+
+print_intro
 
 echo "检查必需命令..."
 need_cmd git

@@ -4,109 +4,114 @@ set -euo pipefail
 BASE_BRANCH="master"
 REMOTE="origin"
 
-echo "Checking required tools..."
-command -v git >/dev/null || { echo "Missing git"; exit 1; }
-command -v gh >/dev/null || { echo "Missing GitHub CLI: gh"; exit 1; }
+print_intro() {
+  echo "功能介绍："
+  echo "  将当前 master 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub 草稿 PR。"
+  echo
+}
+
+print_intro
+
+echo "检查必需命令..."
+command -v git >/dev/null || { echo "缺少必需命令：git"; exit 1; }
+command -v gh >/dev/null || { echo "缺少必需命令：GitHub CLI：gh"; exit 1; }
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
-  echo "Not inside a git repository."
+  echo "当前目录不是 git 仓库。"
   exit 1
 }
 
-echo "Checking remote..."
+echo "检查远程仓库..."
 git remote get-url "$REMOTE" >/dev/null || {
-  echo "Remote '$REMOTE' not found."
+  echo "未找到远程仓库 '$REMOTE'。"
   exit 1
 }
 
-echo "Checking current branch..."
+echo "检查当前分支..."
 CURRENT_BRANCH=$(git branch --show-current)
 
 if [[ "$CURRENT_BRANCH" != "$BASE_BRANCH" ]]; then
-  echo "Current branch is '$CURRENT_BRANCH', but expected '$BASE_BRANCH'."
-  echo "Please switch to '$BASE_BRANCH' first:"
+  echo "当前分支是 '$CURRENT_BRANCH'，但预期分支是 '$BASE_BRANCH'。"
+  echo "请先切换到 '$BASE_BRANCH'："
   echo "  git switch $BASE_BRANCH"
   exit 1
 fi
 
-echo "Checking working tree changes..."
+echo "检查工作区改动..."
 if git diff --quiet && git diff --cached --quiet; then
-  echo "No local changes to commit."
+  echo "没有需要提交的本地改动。"
   exit 0
 fi
 
 echo
-echo "Current status:"
+echo "当前状态："
 git status --short
 
 echo
-read -rp "Enter branch name, e.g. feature/update-login-flow: " BRANCH_NAME
+read -rp "请输入分支名，例如 feature/update-login-flow：" BRANCH_NAME
 
 if [[ ! "$BRANCH_NAME" =~ ^[a-z]+/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-  echo "Invalid branch name. Use format: feature/xxx-yyy, fix/xxx-yyy, or chore/xxx-yyy"
+  echo "分支名格式不正确，请使用 feature/xxx-yyy、fix/xxx-yyy 或 chore/xxx-yyy 这样的格式。"
   exit 1
 fi
 
 if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-  echo "Local branch already exists: $BRANCH_NAME"
+  echo "本地分支已存在：$BRANCH_NAME"
   exit 1
 fi
 
 echo
-read -rp "Enter commit message: " COMMIT_MESSAGE
+read -rp "请输入提交信息：" COMMIT_MESSAGE
 
 if [[ -z "$COMMIT_MESSAGE" ]]; then
-  echo "Commit message cannot be empty."
+  echo "提交信息不能为空。"
   exit 1
 fi
 
-PR_TITLE="$COMMIT_MESSAGE"
-
 echo
-echo "Stashing current changes safely..."
+echo "安全暂存当前改动..."
 STASH_MSG="auto-stash-before-$BRANCH_NAME-$(date +%Y%m%d%H%M%S)"
 git stash push --include-untracked -m "$STASH_MSG"
 
-echo "Fetching latest remote code..."
+echo "获取最新远程代码..."
 git fetch "$REMOTE"
 
-echo "Creating new branch from latest $REMOTE/$BASE_BRANCH..."
+echo "基于最新的 $REMOTE/$BASE_BRANCH 创建新分支..."
 git switch -c "$BRANCH_NAME" "$REMOTE/$BASE_BRANCH"
 
-echo "Restoring your changes onto the new branch..."
+echo "将你的改动恢复到新分支..."
 if ! git stash pop; then
   echo
-  echo "Conflict or error while applying your changes."
-  echo "Please resolve these files manually:"
+  echo "恢复改动时发生冲突或错误。"
+  echo "请手动处理以下文件："
   git status --short
   echo
-  echo "Your stash may still exist. Check with:"
+  echo "你的 stash 可能仍然存在，可用以下命令查看："
   echo "  git stash list"
   exit 1
 fi
 
 echo
-echo "Checking status after restoring changes..."
+echo "检查恢复改动后的状态..."
 git status --short
 
 echo
-echo "Staging all related changes..."
+echo "暂存所有相关改动..."
 git add -A
 
 if git diff --cached --quiet; then
-  echo "No staged changes after applying stash."
+  echo "恢复 stash 后没有已暂存的改动。"
   exit 1
 fi
 
-echo "Committing..."
+echo "提交改动..."
 git commit -m "$COMMIT_MESSAGE"
 
-echo "Pushing branch..."
+echo "推送分支..."
 git push -u "$REMOTE" "$BRANCH_NAME"
 
-echo "Creating draft pull request..."
+echo "创建草稿 PR..."
 gh pr create --draft --fill
 
 echo
-echo "Done."
-
+echo "完成。"
