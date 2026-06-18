@@ -15,6 +15,14 @@ need_cmd() {
   command -v "$1" >/dev/null || die "缺少必需命令：$1"
 }
 
+ensure_jq() {
+  if command -v jq >/dev/null; then
+    return
+  fi
+
+  die "缺少必需命令：jq。请安装 jq 后重试，安装文档：https://jqlang.org/download/"
+}
+
 usage() {
   echo "用法：$(basename "$0") [--clean]"
   echo
@@ -100,40 +108,7 @@ json_field() {
   local file="$1"
   local field="$2"
 
-  if command -v jq >/dev/null; then
-    jq -r --arg field "$field" '.[$field] // empty' "$file"
-    return
-  fi
-
-  if command -v python3 >/dev/null; then
-    python3 - "$file" "$field" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as fh:
-    data = json.load(fh)
-
-value = data.get(sys.argv[2], "")
-print(value if value is not None else "")
-PY
-    return
-  fi
-
-  if command -v python >/dev/null; then
-    python - "$file" "$field" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as fh:
-    data = json.load(fh)
-
-value = data.get(sys.argv[2], "")
-print(value if value is not None else "")
-PY
-    return
-  fi
-
-  die "缺少 jq、python3 或 python，无法解析PlaneAPI 响应。"
+  jq -r --arg field "$field" '.[$field] // empty' "$file"
 }
 
 fetch_plane_work_item_title() {
@@ -156,13 +131,17 @@ fetch_plane_work_item_title() {
     echo "URL：$api_url" >&2
     echo "响应：" >&2
     cat "$tmp_body" >&2
+    echo ""
     rm -f "$tmp_body"
     return 1
   fi
 
   if ! title=$(json_field "$tmp_body" "name"); then
-    rm -f "$tmp_body"
     echo "解析PlaneAPI响应失败。" >&2
+    echo "响应：" >&2
+    cat "$tmp_body" >&2
+    echo ""
+    rm -f "$tmp_body"
     return 1
   fi
   rm -f "$tmp_body"
@@ -189,6 +168,7 @@ echo "检查必需命令..."
 need_cmd git
 need_cmd gh
 need_cmd curl
+ensure_jq
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "当前目录不是 git 仓库。"
 
@@ -225,7 +205,7 @@ while true; do
     break
   fi
 
-  echo "工作项编号格式不正确，请使用 QSAI-123 这样的格式。"
+  echo "工作项编号格式不正确，格式以-分割，前面为大写字母，后面为数字"
 done
 
 BRANCH_NAME="plane/$WORK_ITEM"
@@ -247,13 +227,13 @@ echo "创建分支 $BRANCH_NAME..."
 git switch -c "$BRANCH_NAME"
 
 echo "创建空提交..."
-git commit --allow-empty -m "$WORK_ITEM_TITLE"
+git commit --allow-empty -m "init"
 
 echo "推送分支..."
 git push -u "$REMOTE" "$BRANCH_NAME"
 
 echo "创建草稿 PR..."
-gh pr create --draft --fill
+gh pr create --draft --fill --title "$WORK_ITEM_TITLE"
 
 echo
 echo "完成。"
