@@ -206,12 +206,12 @@ load_plane_config
 echo
 WORK_ITEM=""
 while [[ -z "${WORK_ITEM:-}" ]]; do
-  read -rp "请输入Plane工作项编号，例如 QSYY-123：" WORK_ITEM
+  read -rp "请输入Plane工作项编号，例如 QSAI-123：" WORK_ITEM
 done
 WORK_ITEM="${WORK_ITEM^^}"
 
 if [[ ! "$WORK_ITEM" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
-  die "工作项编号格式不正确，请使用 QSYY-123 这样的格式。"
+  die "工作项编号格式不正确，请使用 QSAI-123 这样的格式。"
 fi
 
 BRANCH_NAME="plane/$WORK_ITEM"
