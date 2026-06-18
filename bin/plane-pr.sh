@@ -147,22 +147,31 @@ fetch_plane_work_item_title() {
     -H "X-API-Key: $PLANE_PAT" \
     "$api_url") || {
     rm -f "$tmp_body"
-    die "调用PlaneAPI 失败。"
+    echo "调用PlaneAPI 失败。" >&2
+    return 1
   }
 
   if [[ ! "$http_status" =~ ^2 ]]; then
-    echo "Plane API 请求失败，HTTP 状态码：$http_status"
-    echo "URL：$api_url"
-    echo "响应："
-    cat "$tmp_body"
+    echo "Plane API 请求失败，HTTP 状态码：$http_status" >&2
+    echo "URL：$api_url" >&2
+    echo "响应：" >&2
+    cat "$tmp_body" >&2
     rm -f "$tmp_body"
-    exit 1
+    return 1
   fi
 
-  title=$(json_field "$tmp_body" "name")
+  if ! title=$(json_field "$tmp_body" "name"); then
+    rm -f "$tmp_body"
+    echo "解析PlaneAPI响应失败。" >&2
+    return 1
+  fi
   rm -f "$tmp_body"
 
-  [[ -n "$title" ]] || die "Plane API 响应中没有找到工作项标题字段 name。"
+  if [[ -z "$title" ]]; then
+    echo "Plane API 响应中没有找到工作项标题字段 name。" >&2
+    return 1
+  fi
+
   printf '%s\n' "$title"
 }
 
@@ -212,8 +221,6 @@ while true; do
     continue
   fi
 
-  WORK_ITEM="${WORK_ITEM^^}"
-
   if [[ "$WORK_ITEM" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
     break
   fi
@@ -232,7 +239,9 @@ if git ls-remote --exit-code --heads "$REMOTE" "$BRANCH_NAME" >/dev/null 2>&1; t
 fi
 
 echo "获取Plane工作项信息..."
-WORK_ITEM_TITLE=$(fetch_plane_work_item_title "$WORK_ITEM")
+if ! WORK_ITEM_TITLE=$(fetch_plane_work_item_title "$WORK_ITEM"); then
+  die "获取Plane工作项信息失败。"
+fi
 
 echo "创建分支 $BRANCH_NAME..."
 git switch -c "$BRANCH_NAME"
