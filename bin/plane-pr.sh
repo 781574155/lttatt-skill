@@ -72,8 +72,9 @@ prompt_plane_config_if_missing() {
   fi
 
   if [[ -z "${PLANE_WORKSPACE:-}" ]]; then
-    read -rp "请输入Plane工作空间标识（打开Plane，如果浏览器地址为 https://plane.openai36.com/qsyy/....，则工作空间标识为 qsyy）：" PLANE_WORKSPACE
-    [[ -n "$PLANE_WORKSPACE" ]] || die "PLANE_WORKSPACE 不能为空。"
+    while [[ -z "${PLANE_WORKSPACE:-}" ]]; do
+      read -rp "请输入Plane工作空间标识（打开Plane，如果浏览器地址为 https://plane.openai36.com/qsyy/....，则工作空间标识为 qsyy）：" PLANE_WORKSPACE
+    done
     changed=1
   fi
 
