@@ -204,7 +204,10 @@ echo "加载Plane配置..."
 load_plane_config
 
 echo
-read -rp "请输入Plane工作项编号，例如 QSYY-123：" WORK_ITEM
+WORK_ITEM=""
+while [[ -z "${WORK_ITEM:-}" ]]; do
+  read -rp "请输入Plane工作项编号，例如 QSYY-123：" WORK_ITEM
+done
 WORK_ITEM="${WORK_ITEM^^}"
 
 if [[ ! "$WORK_ITEM" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
