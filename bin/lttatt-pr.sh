@@ -48,7 +48,9 @@ echo "当前状态："
 git status --short
 
 echo
-read -rp "请输入分支名，例如 feature/update-login-flow：" BRANCH_NAME
+DEFAULT_BRANCH_NAME="choco/p-$(date +%Y%m%d%H%M%S)"
+read -rp "请输入分支名，以feature/、fix/、chore/开头[默认值：$DEFAULT_BRANCH_NAME]：" BRANCH_NAME
+BRANCH_NAME="${BRANCH_NAME:-$DEFAULT_BRANCH_NAME}"
 
 if [[ ! "$BRANCH_NAME" =~ ^[a-z]+/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   echo "分支名格式不正确，请使用 feature/xxx-yyy、fix/xxx-yyy 或 chore/xxx-yyy 这样的格式。"
@@ -61,7 +63,8 @@ if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
 fi
 
 echo
-read -rp "请输入提交信息：" COMMIT_MESSAGE
+read -rp "请输入提交信息[默认值：p]：" COMMIT_MESSAGE
+COMMIT_MESSAGE="${COMMIT_MESSAGE:-p}"
 
 if [[ -z "$COMMIT_MESSAGE" ]]; then
   echo "提交信息不能为空。"
