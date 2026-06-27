@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # CI测试失败不会回退部署，测试可针对单个测试文件运行
-# 运行单个文件测试（Java  ）： ./ci-test.sh https://drama-backend.openai36.com "--very-verbose" e2e/test.hurl
-# 运行单个文件测试（Python）： ./ci-test.sh https://drama-backend.openai36.com "--very-verbose" e2e/test.hurl
-# 运行单个文件测试（React ）： ./ci-test.sh https://drama-backend.openai36.com "--very-verbose" e2e/test.spec.ts
+# 运行单个文件测试： ./ci-test.sh https://xxxxxx.openai36.com "--very-verbose" e2e/xxxxxx
 
 set -e
 
