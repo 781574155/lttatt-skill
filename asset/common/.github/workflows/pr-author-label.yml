@@ -1,4 +1,4 @@
-name: pr-author
+name: PR Author Label
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   author-label:
-    name: label
+    name: check-author-label
     runs-on: arc-runner-set-dind
     steps:
       - name: Require exactly one author label
