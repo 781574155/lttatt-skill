@@ -1,13 +1,7 @@
-# lttatt-bin
+# lttatt-skill
 
-## lttatt-pr.sh
+一些通用的脚本和配置
 
-将当前 `master` 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub 草稿 PR。
+## lttatt-github.sh
 
-## plane-pr.sh
-
-根据 Plane 工作项创建 `plane/工作项编号` 分支，提交 `init` 空提交，推送后创建以工作项标题命名的 GitHub 草稿 PR。
-
-## lttatt-branch.sh
-
-清除远程仓库中已合并或已关闭 PR 对应的分支，并清除远程仓库已删除、只存在于本地仓库的分支。
+从 `config/github-labels.tsv` 读取 GitHub 标签配置，并添加或更新到当前 GitHub 仓库。

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+src/.umi
+src/.umi-production
+src/services/api/
+package.json
+pnpm-lock.yaml
+*.min.mjs
+pdf.worker.js
+iconfont.js
+*.yaml

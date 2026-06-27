@@ -8,7 +8,6 @@ print_intro() {
 }
 
 BASE_BRANCH="master"
-REMOTE="origin"
 
 print_intro
 
@@ -22,8 +21,8 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
 }
 
 echo "检查远程仓库..."
-git remote get-url "$REMOTE" >/dev/null || {
-  echo "未找到远程仓库 '$REMOTE'。"
+git remote get-url origin >/dev/null || {
+  echo "未找到远程仓库origin。"
   exit 1
 }
 
@@ -77,10 +76,10 @@ STASH_MSG="auto-stash-before-$BRANCH_NAME-$(date +%Y%m%d%H%M%S)"
 git stash push --include-untracked -m "$STASH_MSG"
 
 echo "获取最新远程代码..."
-git fetch "$REMOTE"
+git fetch origin
 
-echo "基于最新的 $REMOTE/$BASE_BRANCH 创建新分支..."
-git switch -c "$BRANCH_NAME" "$REMOTE/$BASE_BRANCH"
+echo "基于最新的 origin/$BASE_BRANCH 创建新分支..."
+git switch -c "$BRANCH_NAME" "origin/$BASE_BRANCH"
 
 echo "将你的改动恢复到新分支..."
 if ! git stash pop; then
@@ -111,7 +110,7 @@ echo "提交改动..."
 git commit -m "$COMMIT_MESSAGE"
 
 echo "推送分支..."
-git push -u "$REMOTE" "$BRANCH_NAME"
+git push -u origin "$BRANCH_NAME"
 
 echo "创建草稿 PR..."
 gh pr create --draft --fill
