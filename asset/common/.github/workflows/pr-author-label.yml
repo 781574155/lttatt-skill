@@ -1,0 +1,33 @@
+name: pr-author
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  pull-requests: read
+
+jobs:
+  author-label:
+    name: label
+    runs-on: arc-runner-set-dind
+    steps:
+      - name: Require exactly one author label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels
+              .map((label) => label.name)
+              .filter((name) => name.startsWith("author:"));
+
+            if (labels.length !== 1) {
+              core.setFailed(
+                `PR must have exactly one label starting with "author:". Found ${labels.length}: ${labels.join(", ") || "(none)"}`
+              );
+            }
