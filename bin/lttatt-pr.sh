@@ -7,24 +7,14 @@ print_intro() {
   echo
 }
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lttatt-common.sh"
+
 BASE_BRANCH="master"
 
 print_intro
 
-echo "检查必需命令..."
-command -v git >/dev/null || { echo "缺少必需命令：git"; exit 1; }
-command -v gh >/dev/null || { echo "缺少必需命令：GitHub CLI：gh"; exit 1; }
-
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
-  echo "当前目录不是 git 仓库。"
-  exit 1
-}
-
-echo "检查远程仓库..."
-git remote get-url origin >/dev/null || {
-  echo "未找到远程仓库origin。"
-  exit 1
-}
+lttatt_check_git_remote_prerequisites origin
 
 echo "检查当前分支..."
 CURRENT_BRANCH=$(git branch --show-current)
