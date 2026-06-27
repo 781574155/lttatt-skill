@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+print_intro() {
+  echo "功能介绍："
+  echo "  根据 Plane 工作项创建 plane/工作项编号 分支，提交 init 空提交，推送后创建以工作项标题命名的 GitHub 草稿 PR。"
+  echo
+}
+
 BASE_BRANCH="master"
 REMOTE="origin"
 CONFIG_FILE="${PLANE_CONFIG_FILE:-$HOME/.plane}"
@@ -27,12 +33,6 @@ usage() {
   echo "用法：$(basename "$0") [--clean]"
   echo
   echo "  --clean    删除Plane配置文件：$CONFIG_FILE"
-}
-
-print_intro() {
-  echo "功能介绍："
-  echo "  根据 Plane 工作项创建 plane/工作项编号 分支，提交 init 空提交，推送后创建以工作项标题命名的 GitHub 草稿 PR。"
-  echo
 }
 
 clean_plane_config() {

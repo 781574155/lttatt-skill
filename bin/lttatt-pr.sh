@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_BRANCH="master"
-REMOTE="origin"
-
 print_intro() {
   echo "功能介绍："
   echo "  将当前 master 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub 草稿 PR。"
   echo
 }
+
+BASE_BRANCH="master"
+REMOTE="origin"
 
 print_intro
 

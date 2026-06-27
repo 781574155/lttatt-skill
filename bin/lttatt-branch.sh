@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+print_intro() {
+  echo "功能介绍："
+  echo "  清除远程仓库中已合并或已关闭 PR 对应的分支。"
+  echo "  同时清除远程仓库已删除、只存在于本地仓库的分支。"
+  echo
+}
+
 REMOTE="origin"
 PR_LIMIT="1000"
 
@@ -23,13 +30,6 @@ need_cmd() {
 
 usage() {
   echo "用法：${0##*/}"
-}
-
-print_intro() {
-  echo "功能介绍："
-  echo "  清除远程仓库中已合并或已关闭 PR 对应的分支。"
-  echo "  同时清除远程仓库已删除、只存在于本地仓库的分支。"
-  echo
 }
 
 is_protected_branch() {

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="$HOME/Workspaces/VsCode/lttatt-skill"
-
 echo "功能介绍："
-echo "  更新本地 lttatt-skill 仓库，进入 $REPO_DIR 后执行 git pull origin master。"
+echo "  更新 lttatt-skill 仓库"
 echo
+
+REPO_DIR="$HOME/Workspaces/VsCode/lttatt-skill"
 
 if [[ ! -d "$REPO_DIR" ]]; then
   echo "目录不存在：$REPO_DIR"
