@@ -16,6 +16,8 @@ SCRIPT_DIR="$(cd -- "${SCRIPT_SOURCE%/*}" && pwd)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 ASSET_DIR="$REPO_DIR/asset"
 TARGET_DIR="$(pwd)"
+PROJECT_ROOT=""
+PROJECT_NAME=""
 
 usage() {
   echo "用法：${0##*/}"
@@ -32,6 +34,10 @@ check_git_work_tree() {
   git -C "$TARGET_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
     die "当前目录不是 git 仓库，无法设置可执行权限到 Git 索引。"
   }
+
+  PROJECT_ROOT="$(git -C "$TARGET_DIR" rev-parse --show-toplevel)"
+  PROJECT_NAME="${PROJECT_ROOT##*/}"
+  [[ -n "$PROJECT_NAME" ]] || die "无法获取当前仓库目录名。"
 }
 
 set_copied_shell_files_executable() {
@@ -71,6 +77,58 @@ set_copied_shell_files_executable() {
   fi
 }
 
+replace_project_placeholder_in_copied_files() {
+  local source_dir="$1"
+  local had_globstar had_nullglob source_file relative_path target_file tmp_file
+
+  if shopt -q globstar; then
+    had_globstar=1
+  else
+    had_globstar=0
+  fi
+
+  if shopt -q nullglob; then
+    had_nullglob=1
+  else
+    had_nullglob=0
+  fi
+
+  shopt -s globstar nullglob
+
+  for source_file in "$source_dir"/**/*; do
+    [[ -f "$source_file" ]] || continue
+
+    relative_path="${source_file#"$source_dir"/}"
+    target_file="$TARGET_DIR/$relative_path"
+
+    if [[ -f "$target_file" ]] && grep -Iq "PROJECT_PLACEHOLDER" "$target_file"; then
+      echo "替换项目占位符：$relative_path -> $PROJECT_NAME"
+      tmp_file="$(mktemp)"
+      awk -v search="PROJECT_PLACEHOLDER" -v replacement="$PROJECT_NAME" '
+        {
+          while ((index_at = index($0, search)) > 0) {
+            $0 = substr($0, 1, index_at - 1) replacement substr($0, index_at + length(search))
+          }
+          print
+        }
+      ' "$target_file" > "$tmp_file" || {
+        rm -f "$tmp_file"
+        die "替换项目占位符失败：$relative_path"
+      }
+      cat "$tmp_file" > "$target_file"
+      rm -f "$tmp_file"
+    fi
+  done
+
+  if [[ "$had_globstar" -eq 0 ]]; then
+    shopt -u globstar
+  fi
+
+  if [[ "$had_nullglob" -eq 0 ]]; then
+    shopt -u nullglob
+  fi
+}
+
 copy_template_dir() {
   local source_dir="$1"
   local label="$2"
@@ -79,6 +137,7 @@ copy_template_dir() {
 
   echo "复制 ${label} 文件：$source_dir -> $TARGET_DIR"
   cp -R "$source_dir"/. "$TARGET_DIR"/
+  replace_project_placeholder_in_copied_files "$source_dir"
   set_copied_shell_files_executable "$source_dir"
 }
 
@@ -113,6 +172,7 @@ check_git_work_tree
 detect_project_type
 
 echo "当前项目目录：$TARGET_DIR"
+echo "当前仓库名称：$PROJECT_NAME"
 echo "识别项目类型：$PROJECT_TYPE"
 echo
 

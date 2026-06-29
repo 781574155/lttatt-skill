@@ -1,4 +1,4 @@
-PACKAGE_NAME := drama-processor
+PACKAGE_NAME := PROJECT_PLACEHOLDER
 PACKAGE_VERSION := 2.4.0-SNAPSHOT
 
 ########################################

@@ -97,4 +97,16 @@ requirements.in
 Jenkinsfile
 ci-package.sh
 ci-deploy.sh
+ci-test.sh
+ci-release.sh
 node_modules/
+.ruff.toml
+AGENTS.md
+/e2e/
+*.env
+.env.*
+Makefile
+.super-linter.env
+
+################# 项目定制 #################
+!assets/template/app/.env

@@ -638,3 +638,8 @@ license/
 pnpm-workspace.yaml
 !etc/rabbitmq/
 !/类图.md
+/tmp.py
+
+################# 项目定制 #################
+!assets/template/service/rabbitmq/
+!assets/template/app/.env
