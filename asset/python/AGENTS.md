@@ -1,6 +1,7 @@
 # AGENTS.md
 
 ## 项目结构
+
 - 本项目是 Python 项目，Python 业务代码放在 `tanqi/` 目录下。
 - 根目录 `main.py` 仅作为 FastAPI 轻入口，保留应用初始化、router 注册、`/healthy` 和启动代码；其他接口实现放在 `tanqi/app/` 下对应的 app 层 resource 文件。
 - `tanqi/app/` 是应用层，负责 FastAPI 路由、请求参数合法性校验、响应组装、依赖注入与异常到 HTTP 响应的转换。路由文件名以 `_resource.py` 结尾。
@@ -14,6 +15,7 @@
 - `tanqi/mq/types.py` 是根据后端接口的 OpenAPI 规范自动生成的文件，不要修改。
 
 ## 类型定义
+
 - 类型定义统一放在所属层目录的 `types.py` 中。
 - 应用层请求、响应模型放在 `tanqi/app/types.py`。
 - 服务层内部业务传输类型放在 `tanqi/service/types.py`。
@@ -27,6 +29,7 @@
 - 不要在路由、服务、Repository 文件中散落定义可复用类型。
 
 ## Python 代码风格
+
 - 简单函数不要写 Docstrings。
 - 不要过多代码注释；只有复杂逻辑需要简短说明时再写注释。
 - 优先使用 Python 3.12+ 的现代语法，例如 `str | None`、内置泛型 `list[str]`、`dict[str, Any]`。
@@ -35,10 +38,12 @@
 - JSON 字段使用下划线命名，不要使用驼峰命名；对接第三方接口必须使用其指定字段时除外。
 
 ## 依赖管理
+
 - 添加 Python 依赖包时在 `requirements.in` 中添加，不要直接修改 `requirements.txt`。
 - 更新锁定依赖时运行 `uv pip compile requirements.in -o requirements.txt`。
 
 ## 测试与文档
+
 - 不要修改 `README.md` 文件，除非用户明确要求。
 - 开发功能时，不要生成针对该功能进行解释的 Markdown 文件。
 - 不要写 examples。

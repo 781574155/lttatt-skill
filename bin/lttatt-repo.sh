@@ -141,6 +141,37 @@ copy_template_dir() {
   set_copied_shell_files_executable "$source_dir"
 }
 
+replace_jenkinsfile_stages_tail() {
+  local template_file="$ASSET_DIR/Jenkinsfile"
+  local target_file="$TARGET_DIR/Jenkinsfile"
+  local tmp_file
+
+  [[ -f "$target_file" ]] || return 0
+  [[ -f "$template_file" ]] || die "Jenkinsfile 模板不存在：$template_file"
+
+  echo "替换 Jenkinsfile 的 stages 及其以后内容：$target_file"
+  tmp_file="$(mktemp)"
+  awk '
+    /^[[:space:]]*stages[[:space:]]*\{/ {
+      found = 1
+      exit
+    }
+    { print }
+    END {
+      if (!found) {
+        exit 42
+      }
+    }
+  ' "$target_file" > "$tmp_file" || {
+    rm -f "$tmp_file"
+    die "Jenkinsfile 中未找到 stages 块，无法替换。"
+  }
+
+  cat "$template_file" >> "$tmp_file"
+  cat "$tmp_file" > "$target_file"
+  rm -f "$tmp_file"
+}
+
 detect_project_type() {
   local types=()
 
@@ -178,6 +209,7 @@ echo
 
 copy_template_dir "$ASSET_DIR/common" "通用"
 copy_template_dir "$ASSET_DIR/$PROJECT_TYPE" "$PROJECT_TYPE"
+replace_jenkinsfile_stages_tail
 
 echo
 echo "完成。"

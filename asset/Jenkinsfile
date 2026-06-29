@@ -1,0 +1,154 @@
+    stages {
+        stage('Sync With Upstream') {
+            when {
+                anyOf {
+                    branch 'master'
+                    branch 'main'
+                }
+                expression {
+                    params.BUILD_MODE == 'UpstreamBuildSuccess'
+                }
+            }
+            steps {
+                script {
+                    withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
+                        sh "./ci-sync-upstream.sh"
+                    }
+                    currentBuild.result = 'NOT_BUILT'
+                    error('Sync With Upstream completed, terminating pipeline.')
+                }
+            }
+        }
+
+        stage('Prepare') {
+            steps {
+                script {
+                    env.PACKAGE_NAME = env.JOB_NAME.tokenize('/')[0]
+                    def shortCommit = env.GIT_COMMIT.substring(0,7)
+
+                    if (env.TAG_NAME ==~ /v\d+\.\d+\.\d+/) {
+                        env.PACKAGE_VERSION = env.TAG_NAME
+                    } else {
+                        env.PACKAGE_VERSION = "${env.BRANCH_NAME}-${shortCommit}"
+                    }
+
+                    def committer = sh(
+                        script: "git log -1 --pretty=format:'%cn <%ce>'",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Committer: ${committer}"
+
+                    if (!(env.TAG_NAME ==~ /v\d+\.\d+\.\d+/) && params.BUILD_MODE == 'Default' && committer.contains('super-linter[bot]')) {
+                        echo 'Bot commit detected, skip build.'
+                        currentBuild.result = 'NOT_BUILT'
+                        error('Skip pipeline for bot commit')
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                lock("${env.PACKAGE_NAME}") {
+                    sh "./ci-package.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} ${params.TARGET_PLATFORM}"
+                }
+            }
+        }
+
+        stage('Deploy + Test') {
+            when {
+                not { tag pattern: 'v\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP' }
+            }
+            steps {
+                script {
+                    def lockName = "deploy-${params.DEPLOY_HOST}-${params.APP_DIR}"
+
+                    lock(lockName) {
+                        stage('Deploy') {
+                            def remote = [:]
+                            remote.name = 'DeployHost'
+                            remote.host = params.DEPLOY_HOST
+                            remote.allowAnyHosts = true
+
+                            withCredentials([usernamePassword(
+                                credentialsId: params.DEPLOY_HOST_CREDENTIALS_ID,
+                                usernameVariable: 'username',
+                                passwordVariable: 'password'
+                            )]) {
+                                remote.user = username
+                                remote.password = password
+                                sshPut remote: remote, from: 'ci-deploy.sh', into: "/tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh"
+                                sshCommand remote: remote, command: "chmod +x /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh && /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} '${params.APP_DIR}' '${params.COMPONENT_VAR_NAME}' '${params.COMPONENT_TEST_URL}' '${params.TEXT_MAX_ATTEMPTS}'"
+                            }
+                        }
+
+                        if (!(env.BRANCH_NAME ==~ /^release.*/)) {
+                            stage('Test') {
+                                sh "./ci-test.sh ${params.E2E_TEST_BASE_URL}"
+                            }
+                        } else {
+                            echo "Release branch detected, skip Test."
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('ArgoCD Deploy') {
+            when {
+                tag pattern: 'v\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
+            }
+            steps {
+                withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
+                    sh "./ci-release.sh ${env.TAG_NAME} ${params.DEPLOYMENT_REPO} ${env.PACKAGE_NAME}"
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                def appDirName = params.APP_DIR?.tokenize('/')?.last()
+                def logUrl = "${env.CONTAINER_LOG_BASE_URL}${appDirName}-${env.PACKAGE_NAME}-1"
+                echo "Docker container logs：${logUrl}"
+                if (params.MAIL_TO != null && params.MAIL_TO != 'None') {
+                    mail to: params.MAIL_TO,
+                         subject: "❌ ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: "<p>Build <a href='${env.BUILD_URL}console'>${env.BUILD_URL}console</a> failed. See Jenkins for details.</p>",
+                         mimeType: 'text/html'
+                }
+            }
+        }
+
+        success {
+            script {
+                if (params.MAIL_TO != null && params.MAIL_TO != 'None') {
+                    mail to: params.MAIL_TO,
+                         subject: "✅ ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: "<p>Build <a href='${env.BUILD_URL}console'>${env.BUILD_URL}console</a> succeeded. See Jenkins for details.</p>",
+                         mimeType: 'text/html'
+                }
+            }
+        }
+
+        always {
+            script {
+                def publishJunit = {
+                    if (currentBuild.currentResult == 'NOT_BUILT') {
+                        return
+                    }
+                    if (env.BRANCH_NAME ==~ /^release.*/) {
+                        return
+                    }
+                    if (env.TAG_NAME ==~ /v\d+\.\d+\.\d+/) {
+                        return
+                    }
+                    junit 'out/e2e-junit.xml'
+                }
+                publishJunit()
+            }
+        }
+    }
+}
