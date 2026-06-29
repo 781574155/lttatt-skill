@@ -614,6 +614,13 @@ super-linter.log
 # GitHub Actions leftovers
 github_conf
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
 ################# 易从 #################
 chroma_langchain_db
 .devcontainer/.cache/
@@ -623,7 +630,11 @@ license/
 /*.md
 !/README.md
 !/AGENTS.md
+!/DESIGN.md
 /examples
+.umi/
+.umi-production/
 .windsurfrules
+pnpm-workspace.yaml
 !etc/rabbitmq/
 !/类图.md

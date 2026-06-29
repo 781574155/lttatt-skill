@@ -8,6 +8,8 @@ TARGET_PLATFORM=$3
 
 echo "Building package: $PACKAGE_NAME, version: $PACKAGE_VERSION, for platform: $TARGET_PLATFORM"
 
+mvn clean package
+
 docker buildx build --builder container-builder \
 	--cache-from=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache \
 	--cache-to=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache,mode=max \
