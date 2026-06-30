@@ -177,6 +177,7 @@
 - 优先使用 `var`、lambda 和 Stream API，但不要为了“现代”牺牲可读性。
 - 代码格式遵循 google-java-format，当前 Java 缩进表现为 2 空格。
 - 依赖注入沿用 `jakarta.inject.Inject` 字段注入风格。
+- 判断字符串是否为空时，统一使用 `StringUtils.isBlank` 或 `StringUtils.isNotBlank`。
 - 日志使用 Lombok `@Slf4j` 和 `{}` 占位符，不打印密码、token、密钥等敏感信息。
 - 简单函数不要写 Javadocs；只有复杂业务规则才添加少量解释性注释。
 - 不做无关重构，不顺手改包名、格式、导入顺序或历史风格。

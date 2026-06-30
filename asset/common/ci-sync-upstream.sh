@@ -13,7 +13,7 @@ if [ -f "openapi2ts.config.ts" ]; then
 elif [ -f "requirements.txt" ]; then
 	mkdir -p tanqi/mq
 	datamodel-codegen \
-		--url https://drama-backend.openai36.com/backend-api/v3/api-docs/mq-types \
+		--url https://PROJECT_PLACEHOLDER.openai36.com/backend-api/v3/api-docs/mq-types \
 		--input-file-type openapi \
 		--formatters ruff-check ruff-format \
 		--use-subclass-enum \
