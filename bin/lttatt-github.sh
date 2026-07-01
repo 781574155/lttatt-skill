@@ -180,23 +180,51 @@ label_exists() {
   return 1
 }
 
+confirm_clean_author_labels() {
+  local label answer
+  local author_labels=()
+
+  for label in "${EXISTING_LABELS[@]}"; do
+    if [[ "$label" == author:* ]]; then
+      author_labels+=("$label")
+    fi
+  done
+
+  if [[ "${#author_labels[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "检测到当前仓库包含 author: 开头的标签："
+  for label in "${author_labels[@]}"; do
+    echo "  $label"
+  done
+  echo "标签删除后，原来PR和Issue中的这些标签将被移除。"
+  read -r -p "请再次确认是否继续删除所有标签？输入 yes 继续：" answer
+
+  if [[ "$answer" != "yes" ]]; then
+    echo "已取消清空标签。"
+    exit 1
+  fi
+}
+
 clean_labels() {
   local repo="$1"
   local label label_count
 
   label_count=0
 
-  echo "清空当前仓库标签..."
-  while IFS= read -r label || [[ -n "$label" ]]; do
-    [[ -n "$label" ]] || continue
+  collect_existing_labels "$repo"
+  confirm_clean_author_labels
 
+  echo "清空当前仓库标签..."
+  for label in "${EXISTING_LABELS[@]}"; do
     echo "删除标签：$label"
     gh label delete "$label" \
       --repo "$repo" \
       --yes >/dev/null
 
     label_count=$((label_count + 1))
-  done < <(gh label list --repo "$repo" --limit 1000 --json name --jq '.[].name')
+  done
 
   echo "已删除 ${label_count} 个 GitHub 标签。"
   echo
