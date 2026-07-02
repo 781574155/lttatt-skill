@@ -2,6 +2,15 @@
 
 set -e
 
+if [ -f ".env.lttatt" ]; then
+	set -a
+	. ./.env.lttatt
+	set +a
+fi
+
+: "${UPSTREAM:?Missing UPSTREAM in .env.lttatt}"
+UPSTREAM="${UPSTREAM%/}"
+
 git config user.name "jenkins-bot"
 git config user.email "jenkins-bot@users.noreply.github.com"
 git config http.proxy "${TANQI_HTTPS_PROXY}"
@@ -13,7 +22,7 @@ if [ -f "openapi2ts.config.ts" ]; then
 elif [ -f "requirements.txt" ]; then
 	mkdir -p tanqi/mq
 	datamodel-codegen \
-		--url https://PROJECT_PLACEHOLDER.openai36.com/backend-api/v3/api-docs/mq-types \
+		--url "${UPSTREAM}/backend-api/v3/api-docs/mq-types" \
 		--input-file-type openapi \
 		--formatters ruff-check ruff-format \
 		--use-subclass-enum \

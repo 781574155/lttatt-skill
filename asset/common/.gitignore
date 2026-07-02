@@ -639,6 +639,7 @@ pnpm-workspace.yaml
 !etc/rabbitmq/
 !/类图.md
 /tmp.py
+!.env.lttatt
 
 ################# 项目定制 #################
 !assets/template/service/rabbitmq/
