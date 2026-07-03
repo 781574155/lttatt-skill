@@ -3,7 +3,8 @@ set -euo pipefail
 
 print_intro() {
   echo "功能介绍："
-  echo "  将当前 master 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub 草稿 PR。"
+  echo "  将当前 master 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub PR。"
+  echo "  如果需要创建草稿 PR，请使用 --draft 参数。"
   echo
 }
 
@@ -11,7 +12,34 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lttatt-common.sh"
 
 BASE_BRANCH="master"
+CREATE_DRAFT_PR=0
 
+usage() {
+  echo "用法：${0##*/} [--draft]"
+  echo
+  echo "  --draft    创建 GitHub 草稿 PR"
+}
+
+parse_args() {
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --draft)
+        CREATE_DRAFT_PR=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
+
+parse_args "$@"
 print_intro
 
 lttatt_check_git_remote_prerequisites origin
@@ -102,8 +130,13 @@ git commit -m "$COMMIT_MESSAGE"
 echo "推送分支..."
 git push -u origin "$BRANCH_NAME"
 
-echo "创建草稿 PR..."
-gh pr create --draft --fill
+if [[ "$CREATE_DRAFT_PR" -eq 1 ]]; then
+  echo "创建草稿 PR..."
+  gh pr create --draft --fill
+else
+  echo "创建 PR..."
+  gh pr create --fill
+fi
 
 echo
 echo "完成。"

@@ -107,6 +107,7 @@ AGENTS.md
 .env.*
 Makefile
 .super-linter.env
+!.env.lttatt
 
 ################# 项目定制 #################
 !assets/template/app/.env
