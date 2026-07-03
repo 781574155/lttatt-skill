@@ -1,9 +1,37 @@
 // @ts-ignore
 import { camelCase } from "lodash";
-import { loadEnv } from "vite";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-const env = loadEnv("lttatt", process.cwd(), "");
-const upstream = env.UPSTREAM?.replace(/\/$/, "");
+function parseEnvFile(filePath: string): Record<string, string> {
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    return Object.fromEntries(
+      content
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"))
+        .map((line) => {
+          const idx = line.indexOf("=");
+          return idx === -1
+            ? null
+            : [
+                line.slice(0, idx).trim(),
+                line
+                  .slice(idx + 1)
+                  .trim()
+                  .replace(/^(['"])(.*)\1$/, "$2"),
+              ];
+        })
+        .filter(Boolean) as [string, string][],
+    );
+  } catch {
+    return {};
+  }
+}
+
+const env = parseEnvFile(resolve(process.cwd(), ".env.lttatt"));
+const upstream = (env.UPSTREAM ?? process.env.UPSTREAM ?? "").replace(/\/$/, "");
 
 if (!upstream) {
   throw new Error("Missing UPSTREAM in .env.lttatt");
