@@ -96,6 +96,7 @@
 
 - 除非明确要求，不新增测试代码。
 - 如果要求为 React 功能补测试，只写 Playwright 测试，放在 `e2e`。
+- Playwright 测试默认走真实前后端访问，不要使用 mock 数据、`route.fulfill` 伪造接口响应或前端假数据绕过真实接口行为；确需为测试场景补充请求参数时，可以用 `page.route` 修改请求后 `route.continue` 继续访问真实后端，例如验证码发送传 `send:false`。
 - Playwright 用例优先复用 `e2e/helpers/auth.ts` 的登录辅助和 `e2e/vars.env` 凭据。
 - 本地运行 e2e 时需要设置 `E2E_TEST_BASE_URL`，或通过 `ci-test.sh` 传入目标地址。
 - 修改 TypeScript/React 代码后，不要运行 `pnpm lint` 和 `pnpm build` 等命令做验证。代码修改完成就算开发完成了，不要运行命令进行验证。

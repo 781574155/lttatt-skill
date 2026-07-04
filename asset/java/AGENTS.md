@@ -64,6 +64,7 @@
 - 标准 CRUD 方法名保持：列表 `readAll`，单个 `read`，创建 `create`，全量修改 `update`，局部修改 `patch`，删除 `delete`。
 - 列表查询统一返回 `Page<XxxResp>`，参数使用 `Pageable`；需要默认排序时使用 `@PageableDefault`。
 - 单个资源路径使用 `"{id}"`；子动作路径使用 `"{id}/xxx"`，动词动作优先使用 `@PostMapping`。
+- `patch` 接口先查询 Entity，再在 Java 中判断请求参数是否为 `null`；不为 `null` 时设置到 Entity 并保存，不要通过 JPQL 直接更新。
 - 新增 Resource 优先按以下形态组织：
 
   ```java
@@ -130,7 +131,8 @@
   @NotNull private LocalDateTime createTime = LocalDateTime.now();
   ```
 
-- 数据库唯一索引、字段类型调整为 `TEXT`/`MEDIUMTEXT`、字段名、默认值等，都放到 Liquibase SQL，不要靠 Entity 注解表达。
+- 数据库唯一索引、字段类型调整为 `TEXT`/`MEDIUMTEXT`、字段名等，都放到 Liquibase SQL，不要靠 Entity 注解表达。
+- 创建数据库表时，一般不指定字段默认值；对于不能为空且有默认值的字段，一般在 Java 的 Entity 字段上指定默认值。
 - 现有实体倾向使用显式外键 id 字段，不使用复杂 JPA 关联映射；新增模型优先延续这个风格。
 - Repository 通常继承 `JpaRepository<Entity, Integer>`；复杂查询优先使用 JPQL `@Query`、Specification 或投影 DTO。
 - Redis KV 放 `eao/redis/`，Mongo 文档放 `eao/mongo/`，按已有 Spring Data 注解组织。
