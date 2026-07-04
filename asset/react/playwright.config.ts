@@ -12,6 +12,9 @@ export default defineConfig({
     timezoneId: "Asia/Shanghai",
     navigationTimeout: 60000,
     actionTimeout: 30000,
+    launchOptions: {
+      slowMo: Number(process.env.PLAYWRIGHT_SLOW_MO ?? 0),
+    },
   },
   projects: [
     {

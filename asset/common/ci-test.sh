@@ -49,8 +49,9 @@ elif find e2e -type f -name "*.ts" -print -quit | grep -q .; then
 	PLAYWRIGHT_ARGS=""
 	if [[ "$TEST_MODE" == "--very-verbose" ]]; then
 		PLAYWRIGHT_ARGS="--headed"
+		PLAYWRIGHT_SLOW_MO=1000
 	fi
-	E2E_TEST_BASE_URL="${E2E_TEST_BASE_URL}" pnpm exec playwright test ${PLAYWRIGHT_ARGS} "${TEST_FILE}"
+	PLAYWRIGHT_SLOW_MO=$PLAYWRIGHT_SLOW_MO E2E_TEST_BASE_URL="${E2E_TEST_BASE_URL}" pnpm exec playwright test ${PLAYWRIGHT_ARGS} "${TEST_FILE}"
 else
 	echo "No test files found in the e2e directory."
 	mkdir -p out
