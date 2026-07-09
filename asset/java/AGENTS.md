@@ -64,6 +64,7 @@
 - 类级路径使用复数资源名和 kebab-case，例如 `@RequestMapping("admin/banners")`、`@RequestMapping("user/ai-calls")`。
 - 标准 CRUD 方法名保持：列表 `readAll`，单个 `read`，创建 `create`，全量修改 `update`，局部修改 `patch`，删除 `delete`。
 - 列表查询统一返回 `Page<XxxResp>`，参数使用 `Pageable`；需要默认排序时使用 `@PageableDefault`。
+- Resource 中列表查询参数可能为 `null` 时，优先使用 Specification 按非空参数组合查询条件；不要为了不同参数组合调用多个 Repository 查询方法，也不要在 JPQL 中写 `:param is null or ...` 这类参数判空逻辑。
 - 单个资源路径使用 `"{id}"`；子动作路径使用 `"{id}/xxx"`，动词动作优先使用 `@PostMapping`。
 - `patch` 接口先查询 Entity，再在 Java 中判断请求参数是否为 `null`；不为 `null` 时设置到 Entity 并保存，不要通过 JPQL 直接更新。
 - 新增 Resource 优先按以下形态组织：

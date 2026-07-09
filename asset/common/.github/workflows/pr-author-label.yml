@@ -5,6 +5,7 @@ on:
     types:
       - labeled
       - unlabeled
+      - synchronize
 
 permissions:
   pull-requests: read
