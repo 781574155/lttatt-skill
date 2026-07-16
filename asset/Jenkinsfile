@@ -50,8 +50,8 @@
 
         stage('Build') {
             steps {
-                lock("${env.PACKAGE_NAME}") {
-                    sh "./ci-package.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} ${params.TARGET_PLATFORM}"
+                lock("${env.PACKAGE_NAME}-${env.BRANCH_NAME}") {
+                    sh "./ci-package.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} ${params.TARGET_PLATFORM} ${BRANCH_NAME}"
                 }
             }
         }
