@@ -79,7 +79,7 @@
                                 remote.user = username
                                 remote.password = password
                                 sshPut remote: remote, from: 'ci-deploy.sh', into: "/tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh"
-                                sshCommand remote: remote, command: "chmod +x /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh && /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} '${params.APP_DIR}' '${params.COMPONENT_VAR_NAME}' '${params.COMPONENT_HEALTHY_URL}' '${params.TEXT_MAX_ATTEMPTS}'"
+                                sshCommand remote: remote, command: "chmod +x /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh && /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} '${params.APP_DIR}' '${params.COMPONENT_VAR_NAME}' '${params.COMPONENT_HEALTHY_URL}' '${params.HEALTHY_MAX_ATTEMPTS}'"
                             }
                         }
 
