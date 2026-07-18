@@ -6,7 +6,7 @@ PACKAGE_NAME=$1
 PACKAGE_VERSION=$2
 APP_DIR=$3
 COMPONENT_VAR_NAME=$4
-COMPONENT_TEST_URL=$5
+COMPONENT_HEALTHY_URL=$5
 TEXT_MAX_ATTEMPTS=$6
 
 echo "Deploying package: $PACKAGE_NAME, version: $PACKAGE_VERSION"
@@ -20,13 +20,13 @@ sed -i "s/^${COMPONENT_VAR_NAME}=.*/${COMPONENT_VAR_NAME}=$PACKAGE_VERSION/" "$A
 echo "Deployment script completed. Waiting for the application to become reachable..."
 
 attempt=0
-until curl -sSf "$COMPONENT_TEST_URL" >/dev/null || [ $attempt -ge "$TEXT_MAX_ATTEMPTS" ]; do
+until curl -sSf "$COMPONENT_HEALTHY_URL" >/dev/null || [ $attempt -ge "$TEXT_MAX_ATTEMPTS" ]; do
 	attempt=$((attempt + 1))
-	echo "Waiting for $COMPONENT_TEST_URL (attempt ${attempt}/${TEXT_MAX_ATTEMPTS})..."
+	echo "Waiting for $COMPONENT_HEALTHY_URL (attempt ${attempt}/${TEXT_MAX_ATTEMPTS})..."
 	sleep 1
 done
-if ! curl -sSf "$COMPONENT_TEST_URL" >/dev/null; then
-	echo "ERROR: $COMPONENT_TEST_URL not reachable after ${TEXT_MAX_ATTEMPTS} seconds"
+if ! curl -sSf "$COMPONENT_HEALTHY_URL" >/dev/null; then
+	echo "ERROR: $COMPONENT_HEALTHY_URL not reachable after ${TEXT_MAX_ATTEMPTS} seconds"
 
 	echo "Try to rollback to previous version"
 	BACKUP_VERSION=$(grep "^${COMPONENT_VAR_NAME}=" "$APP_DIR"/.versions | tail -n1 | cut -d'=' -f2-)
