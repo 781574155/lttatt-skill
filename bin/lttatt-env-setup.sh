@@ -31,6 +31,22 @@ EOF
 # cat ~/.bashrc
 # export PATH="/c/Users/78157/bin:/mingw64/bin:/usr/local/bin:/usr/bin:/bin:/mingw64/bin:/usr/bin:/c/Users/78157/bin:/c/Program Files/Common Files/Oracle/Java/javapath:/c/windows/system32:/c/windows:/c/windows/System32/Wbem:/c/windows/System32/WindowsPowerShell/v1.0:/c/windows/System32/OpenSSH:/c/Program Files/dotnet:/cmd:/c/Program Files/Docker/Docker/resources/bin:/c/Program Files (x86)/NetSarang/Xshell 8:/c/Program Files (x86)/NetSarang/Xftp 8:/c/Program Files/PowerShell/7:/c/Program Files/GitHub CLI:/c/Users/78157/AppData/Local/nvm:/c/nvm4w/nodejs:/c/Users/78157/tools/apache-maven-3.9.14/bin:/c/ProgramData/chocolatey/bin:/c/Users/78157/AppData/Local/Programs/Python/Launcher:/c/Users/78157/.local/bin:/c/Users/78157/AppData/Local/Microsoft/WindowsApps:/c/Users/78157/AppData/Local/Microsoft/WinGet/Packages/GitHub.Copilot_Microsoft.Winget.Source_8wekyb3d8bbwe:/c/Users/78157/AppData/Local/nvm:/c/nvm4w/nodejs:/c/Program Files/hurl:/usr/bin/vendor_perl:/usr/bin/core_perl:~/bin:~/bin:~/Workspaces/VsCode/lttatt-skill/bin:/c/Program Files/GitHub CLI:/c/Program Files/Docker/Docker/resources/bin"
 
+mkdir -p ~/.m2
+cat > ~/.m2/settings.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <mirrors>
+        <mirror>
+            <id>mirror</id>
+            <mirrorOf>central,jcenter,!rdc-releases,!rdc-snapshots</mirrorOf>
+            <name>mirror</name>
+            <url>https://maven.aliyun.com/nexus/content/groups/public</url>
+        </mirror>
+    </mirrors>
+</settings>
+EOF
 
 git config --global init.defaultBranch master
 git config --global alias.st status
