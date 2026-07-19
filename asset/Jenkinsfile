@@ -135,20 +135,24 @@
 
         always {
             script {
-                def publishJunit = {
-                    if (currentBuild.currentResult == 'NOT_BUILT') {
-                        return
-                    }
-                    if (env.BRANCH_NAME ==~ /^release.*/) {
-                        return
-                    }
-                    if (env.TAG_NAME ==~ /v\d+\.\d+\.\d+/) {
-                        return
-                    }
+                if (fileExists('out/e2e-junit.xml')) {
                     junit 'out/e2e-junit.xml'
                 }
-                publishJunit()
+                if (fileExists('out/playwright-report/index.html')) {
+                    publishHTML(target: [
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'out/playwright-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Playwright Report'
+                    ])
+                }
             }
+            archiveArtifacts(
+                artifacts: 'out/test-results/**/*',
+                allowEmptyArchive: true
+            )
         }
     }
 }

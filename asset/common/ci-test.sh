@@ -26,7 +26,6 @@ run_hurl_file() {
 	echo "----------------------------------------"
 
 	hurl "${TEST_MODE}" \
-		--jobs 1 \
 		--report-junit out/e2e-junit.xml \
 		--variable base_url="${E2E_TEST_BASE_URL}" \
 		--variable timestamp="$(date +%s)" \
@@ -57,7 +56,7 @@ elif find e2e -type f -name "*.ts" -print -quit | grep -q .; then
 		PLAYWRIGHT_ARGS="--headed"
 		PLAYWRIGHT_SLOW_MO=1000
 	fi
-	PLAYWRIGHT_SLOW_MO=$PLAYWRIGHT_SLOW_MO E2E_TEST_BASE_URL="${E2E_TEST_BASE_URL}" pnpm exec playwright test ${PLAYWRIGHT_ARGS} "${TEST_FILE}" --workers=1
+	PLAYWRIGHT_SLOW_MO=$PLAYWRIGHT_SLOW_MO E2E_TEST_BASE_URL="${E2E_TEST_BASE_URL}" pnpm exec playwright test ${PLAYWRIGHT_ARGS} "${TEST_FILE}"
 else
 	echo "No test files found in the e2e directory."
 	mkdir -p out
