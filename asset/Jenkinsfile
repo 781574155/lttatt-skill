@@ -11,11 +11,15 @@
             }
             steps {
                 script {
-                    withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
-                        sh "./ci-sync-upstream.sh"
+                    def lockName = "deploy-${params.DEPLOY_HOST}-${params.APP_DIR}"
+
+                    lock(lockName) {
+                        withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
+                            sh "./ci-sync-upstream.sh"
+                        }
+                        currentBuild.result = 'NOT_BUILT'
+                        error('Sync With Upstream completed, terminating pipeline.')
                     }
-                    currentBuild.result = 'NOT_BUILT'
-                    error('Sync With Upstream completed, terminating pipeline.')
                 }
             }
         }
