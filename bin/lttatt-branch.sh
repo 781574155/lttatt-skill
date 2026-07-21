@@ -13,7 +13,6 @@ PR_LIMIT="1000"
 
 PROTECTED_BRANCHES=(
   "master"
-  "main"
   "develop"
   "dev"
   "release"

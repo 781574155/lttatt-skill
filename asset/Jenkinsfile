@@ -3,7 +3,6 @@
             when {
                 anyOf {
                     branch 'master'
-                    branch 'main'
                 }
                 expression {
                     params.BUILD_MODE == 'UpstreamBuildSuccess'
@@ -15,7 +14,14 @@
 
                     lock(lockName) {
                         withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
-                            sh "./ci-sync-upstream.sh"
+                            def syncStatus = sh(script: "./ci-sync-upstream.sh", returnStatus: true)
+                            if (syncStatus == 75) {
+                                currentBuild.result = 'ABORTED'
+                                error('Upstream deployed version does not start with master, abort packaging.')
+                            }
+                            if (syncStatus != 0) {
+                                error("ci-sync-upstream.sh exited with return code ${syncStatus}")
+                            }
                         }
                         currentBuild.result = 'NOT_BUILT'
                         error('Sync With Upstream completed, terminating pipeline.')

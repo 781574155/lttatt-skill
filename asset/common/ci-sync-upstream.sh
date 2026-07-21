@@ -17,6 +17,14 @@ fi
 : "${UPSTREAM:?Missing UPSTREAM in .env.lttatt}"
 UPSTREAM="${UPSTREAM%/}"
 
+DEPLOYMENT_INFO=$(curl -sf -X GET "${UPSTREAM}/backend-api/pub/deployment-info")
+DEPLOYED_VERSION=$(printf '%s' "${DEPLOYMENT_INFO}" | jq -r '.data.version // ""')
+echo "Upstream deployed version: ${DEPLOYED_VERSION}"
+if [[ "${DEPLOYED_VERSION}" != master* ]]; then
+	echo "Upstream deployed version does not start with master, abort packaging."
+	exit 75
+fi
+
 git config user.name "jenkins-bot"
 git config user.email "jenkins-bot@users.noreply.github.com"
 git config http.proxy "${TANQI_HTTPS_PROXY}"
