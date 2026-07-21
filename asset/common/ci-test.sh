@@ -19,33 +19,25 @@ TEST_FILE=${3:-"e2e"}
 echo "Testing application at base URL: $E2E_TEST_BASE_URL"
 echo "Using mode: $TEST_MODE, file: $TEST_FILE"
 
-run_hurl_file() {
-	local file="$1"
-	echo "----------------------------------------"
-	echo "Running Hurl test: $file"
-	echo "----------------------------------------"
-
-	hurl "${TEST_MODE}" \
-		--report-junit out/e2e-junit.xml \
-		--variable base_url="${E2E_TEST_BASE_URL}" \
-		--variable timestamp="$(date +%s)" \
-		--variables-file e2e/vars.env \
-		--file-root . \
-		"$file"
-}
-
 if find e2e -type f -name "*.hurl" -print -quit | grep -q .; then
 	if [[ -f "$TEST_FILE" ]]; then
-		run_hurl_file "$TEST_FILE"
+		hurl "${TEST_MODE}" \
+			--report-junit out/e2e-junit.xml \
+			--variable base_url="${E2E_TEST_BASE_URL}" \
+			--variables-file e2e/vars.env \
+			--file-root . \
+			"$TEST_FILE"
 	elif [[ -d "$TEST_FILE" ]]; then
-		mapfile -t files < <(find "$TEST_FILE" -type f -name "*.hurl" | sort)
-		if [[ ${#files[@]} -eq 0 ]]; then
+		if ! find "$TEST_FILE" -type f -name "*.hurl" -print -quit | grep -q .; then
 			echo "No .hurl files found in directory: $TEST_FILE"
 			exit 1
 		fi
-		for file in "${files[@]}"; do
-			run_hurl_file "$file"
-		done
+		hurl "${TEST_MODE}" \
+			--glob "${TEST_FILE}/**/*.hurl" \
+			--report-junit out/e2e-junit.xml \
+			--variable base_url="${E2E_TEST_BASE_URL}" \
+			--variables-file e2e/vars.env \
+			--file-root .
 	else
 		echo "Invalid TEST_FILE: $TEST_FILE"
 		exit 1

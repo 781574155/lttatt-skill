@@ -22,6 +22,7 @@ docker buildx build --builder container-builder \
 	--cache-from=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-master \
 	--cache-from=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-"$CACHE_BRANCH" \
 	--cache-to=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-"$CACHE_BRANCH",mode=max \
+	--build-arg PACKAGE_VERSION="$PACKAGE_VERSION" \
 	--push \
 	--platform "$TARGET_PLATFORM" \
 	-t registry.openai36.com/tanqi/"$PACKAGE_NAME":"$PACKAGE_VERSION" .
