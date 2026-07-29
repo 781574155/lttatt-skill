@@ -94,7 +94,7 @@ STASH_MSG="auto-stash-before-$BRANCH_NAME-$(date +%Y%m%d%H%M%S)"
 git stash push --include-untracked -m "$STASH_MSG"
 
 echo "获取最新远程代码..."
-git fetch origin
+git fetch --no-tags --depth=1 origin "$BASE_BRANCH"
 
 echo "基于最新的 origin/$BASE_BRANCH 创建新分支..."
 git switch -c "$BRANCH_NAME" "origin/$BASE_BRANCH"
