@@ -147,7 +147,7 @@
 - 对应 Repository 继承 `SortOrderRepository<Entity, Integer>`；如果还需要自定义查询，直接在该 Repository 中继续声明。
 - Liquibase 中新增或调整 `sort_order BIGINT NOT NULL DEFAULT 1000`，不要通过 Entity 映射注解表达字段名或默认值。
 - 创建新数据时注入 `SortOrderService`，用 `sortOrderService.nextSortOrder(repository)` 设置 `sortOrder`，不要手写固定值或自行查询最大值。
-- 列表接口按 `sortOrder` 升序、`createTime` 降序返回：`Sort.by(Sort.Direction.ASC, "sortOrder").and(Sort.by(Sort.Direction.DESC, "createTime"))`；公开查询可用 `OrderBySortOrderAscCreateTimeDesc` 风格的方法名。
+- 列表接口按 `sortOrder` 降序、`createTime` 降序返回：`Sort.by(Sort.Direction.DESC, "sortOrder").and(Sort.by(Sort.Direction.DESC, "createTime"))`；公开查询可用 `OrderBySortOrderDescCreateTimeDesc` 风格的方法名。
 - 拖动接口使用 `POST {id}/move`，请求体使用公共 `MoveReq`，方法加 `@Transactional`，实现只调用 `sortOrderService.move(repository, id, req.prevId(), req.nextId(), "实体中文名")`。
 - 前端拖动后传目标位置相邻节点：移动到列表顶部时 `prev_id` 为空、`next_id` 为后一条 id；移动到底部时 `prev_id` 为前一条 id、`next_id` 为空；移动到中间时二者都传；二者不能同时为空，也不能等于当前 id。
 - 不要为单个实体重复实现排序间隔、重排或边界校验逻辑，统一复用 `SortOrderService` 和 `MoveReq`。
@@ -155,10 +155,12 @@
 ## Liquibase
 
 - SQL 文件使用 `--liquibase formatted sql`。
+- 编写 SQL 时，不要使用 `COMMENT` 添加注释。一般不要使用 `DEFAULT` 设置列默认值；需要默认值时，一般直接在 Java 的 Entity 字段上设置。
 - 表结构变更放在所属模块的 `src/main/resources/db/changelog/` 下，文件名保持 `*_entity.sql` 风格。
 - 新增 changelog 后，同步更新 `db.changelog-master.yaml` 的 `include`。
 - changeset 继续使用仓库已有的作者前缀和递增编号风格；可回滚的变更写 `--rollback`。
 - 表名、列名、索引名使用 snake_case；唯一索引优先用 SQL 中的 `UNIQUE KEY` 或 `CONSTRAINT`。
+- `user_id` 字段需要添加引用用户表的外键；删除策略一般使用 `ON DELETE CASCADE`，根据业务情况也可以使用 `ON DELETE SET NULL`，此时字段必须允许为 `NULL`。
 - 涉及外键时按所有权关系考虑 `ON DELETE CASCADE`，延续现有表设计。
 
 ## 异步、事件与消息
