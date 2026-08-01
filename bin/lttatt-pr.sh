@@ -11,7 +11,6 @@ print_intro() {
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lttatt-common.sh"
 
-BASE_BRANCH="master"
 CREATE_DRAFT_PR=0
 
 usage() {
@@ -47,10 +46,10 @@ lttatt_check_git_remote_prerequisites origin
 echo "检查当前分支..."
 CURRENT_BRANCH=$(git branch --show-current)
 
-if [[ "$CURRENT_BRANCH" != "$BASE_BRANCH" ]]; then
-  echo "当前分支是 '$CURRENT_BRANCH'，但预期分支是 '$BASE_BRANCH'。"
-  echo "请先切换到 '$BASE_BRANCH'："
-  echo "  git switch $BASE_BRANCH"
+if [[ "$CURRENT_BRANCH" != "master" ]]; then
+  echo "当前分支是 '$CURRENT_BRANCH'，但预期分支是 'master'。"
+  echo "请先切换到 'master'："
+  echo "  git switch master"
   exit 1
 fi
 
@@ -94,10 +93,10 @@ STASH_MSG="auto-stash-before-$BRANCH_NAME-$(date +%Y%m%d%H%M%S)"
 git stash push --include-untracked -m "$STASH_MSG"
 
 echo "获取最新远程代码..."
-git fetch --no-tags --depth=1 origin "$BASE_BRANCH"
+git fetch origin master
 
-echo "基于最新的 origin/$BASE_BRANCH 创建新分支..."
-git switch -c "$BRANCH_NAME" "origin/$BASE_BRANCH"
+echo "基于最新的 origin/master 创建新分支..."
+git switch -c "$BRANCH_NAME" origin/master
 
 echo "将你的改动恢复到新分支..."
 if ! git stash pop; then
