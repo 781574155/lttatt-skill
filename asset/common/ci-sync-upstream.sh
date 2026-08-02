@@ -26,6 +26,7 @@ trap 'ci_script_log_exit "$?"' EXIT
 
 if [ -f ".env.lttatt" ]; then
 	set -a
+	# shellcheck source=/dev/null
 	. ./.env.lttatt
 	set +a
 fi
