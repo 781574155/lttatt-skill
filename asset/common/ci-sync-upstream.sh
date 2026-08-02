@@ -6,7 +6,23 @@ CI_SCRIPT_NAME=$(basename "$0")
 CI_SCRIPT_STARTED_SECONDS=$(date +%s)
 CI_SCRIPT_STARTED_AT=$(date '+%Y-%m-%d %H:%M:%S %z')
 echo "CI script ${CI_SCRIPT_NAME} started at: ${CI_SCRIPT_STARTED_AT}"
-trap 'CI_SCRIPT_EXIT_CODE=$?; CI_SCRIPT_ENDED_SECONDS=$(date +%s); CI_SCRIPT_ENDED_AT=$(date "+%Y-%m-%d %H:%M:%S %z"); CI_SCRIPT_ELAPSED_SECONDS=$((CI_SCRIPT_ENDED_SECONDS - CI_SCRIPT_STARTED_SECONDS)); echo "CI script ${CI_SCRIPT_NAME} ended at: ${CI_SCRIPT_ENDED_AT}"; echo "CI script ${CI_SCRIPT_NAME} elapsed seconds: ${CI_SCRIPT_ELAPSED_SECONDS}"; exit "${CI_SCRIPT_EXIT_CODE}"' EXIT
+
+ci_script_log_exit() {
+	local ci_script_exit_code
+	local ci_script_ended_seconds
+	local ci_script_ended_at
+	local ci_script_elapsed_seconds
+
+	ci_script_exit_code=$1
+	ci_script_ended_seconds=$(date +%s)
+	ci_script_ended_at=$(date "+%Y-%m-%d %H:%M:%S %z")
+	ci_script_elapsed_seconds=$((ci_script_ended_seconds - CI_SCRIPT_STARTED_SECONDS))
+	echo "CI script ${CI_SCRIPT_NAME} ended at: ${ci_script_ended_at}"
+	echo "CI script ${CI_SCRIPT_NAME} elapsed seconds: ${ci_script_elapsed_seconds}"
+	exit "${ci_script_exit_code}"
+}
+
+trap 'ci_script_log_exit "$?"' EXIT
 
 if [ -f ".env.lttatt" ]; then
 	set -a
