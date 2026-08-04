@@ -54,7 +54,7 @@ if [[ "$CURRENT_BRANCH" != "master" ]]; then
 fi
 
 echo "检查工作区改动..."
-if git diff --quiet && git diff --cached --quiet; then
+if [[ -z "$(git status --porcelain --untracked-files=all)" ]]; then
   echo "没有需要提交的本地改动。"
   exit 0
 fi
