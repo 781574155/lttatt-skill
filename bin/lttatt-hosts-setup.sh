@@ -44,5 +44,7 @@ cat >> "$hosts_file" << EOF
 192.168.2.10 plane.openai36.com
 192.168.2.10 n8n.openai36.com
 192.168.2.10 langfuse.openai36.com
+192.168.2.10 drama-react.openai36.com
+192.168.2.10 drama-backend.openai36.com
 # End of section
 EOF

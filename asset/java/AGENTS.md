@@ -146,7 +146,7 @@
 
 - 需要拖动排序的 JPA 实体实现 `SortOrderEntity`，保留 `id`、`sortOrder` 的 getter/setter，并新增 `@NotNull private Long sortOrder = 1000L;`。
 - 对应 Repository 继承 `SortOrderRepository<Entity, Integer>`；如果还需要自定义查询，直接在该 Repository 中继续声明。
-- Liquibase 中新增或调整 `sort_order BIGINT NOT NULL DEFAULT 1000`，不要通过 Entity 映射注解表达字段名或默认值。
+- Liquibase 中新增或调整 `sort_order BIGINT NOT NULL DEFAULT 1000`，并为 `sort_order` 增加索引；不要通过 Entity 映射注解表达字段名、默认值或索引。
 - 创建新数据时注入 `SortOrderService`，用 `sortOrderService.nextSortOrder(repository)` 设置 `sortOrder`，不要手写固定值或自行查询最大值。
 - 列表接口按 `sortOrder` 降序、`createTime` 降序返回：`Sort.by(Sort.Direction.DESC, "sortOrder").and(Sort.by(Sort.Direction.DESC, "createTime"))`；公开查询可用 `OrderBySortOrderDescCreateTimeDesc` 风格的方法名。
 - 拖动接口使用 `POST {id}/move`，请求体使用公共 `MoveReq`，方法加 `@Transactional`，实现只调用 `sortOrderService.move(repository, id, req.prevId(), req.nextId(), "实体中文名")`。
