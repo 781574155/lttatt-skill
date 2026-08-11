@@ -10,9 +10,8 @@ permissions: {}
 jobs:
   lint:
     name: Lint
-    runs-on: arc-runner-set-dind
+    runs-on: arc-runner-set-k8s
     permissions:
-      contents: write
       packages: read
       statuses: write
     steps:
@@ -20,16 +19,17 @@ jobs:
         run: git config --global http.version HTTP/1.1
 
       - name: Create GitHub App token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3.2.0
         id: app-token
+        env:
+          NODE_USE_ENV_PROXY: "1"
         with:
-          app-id: ${{ vars.LTTATT_READ_WRITE_APP_ID }}
+          client-id: ${{ vars.LTTATT_READ_WRITE_APP_ID }}
           private-key: ${{ secrets.LTTATT_READ_WRITE_APP_PRIVATE_KEY }}
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Load super-linter configuration
@@ -38,11 +38,12 @@ jobs:
       - name: Super-linter
         uses: 781574155/super-linter@v8.3.0-tanqi
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Commit and push linting fixes
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: stefanzweifel/git-auto-commit-action@v7.2.0
         with:
           commit_message: "chore: fix linting issues"
           commit_user_name: super-linter[bot]
           commit_user_email: super-linter@bots.noreply.github.com
+          skip_fetch: true

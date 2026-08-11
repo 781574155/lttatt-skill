@@ -13,10 +13,10 @@ permissions:
 jobs:
   author-label:
     name: check-author-label
-    runs-on: arc-runner-set-dind
+    runs-on: arc-runner-set
     steps:
       - name: Require exactly one author label
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const labels = context.payload.pull_request.labels

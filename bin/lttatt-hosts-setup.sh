@@ -40,11 +40,5 @@ cat >> "$hosts_file" << EOF
 127.0.0.1   elasticsearch
 127.0.0.1   emqx
 127.0.0.1   kafka
-192.168.2.10 metabase.openai36.com
-192.168.2.10 plane.openai36.com
-192.168.2.10 n8n.openai36.com
-192.168.2.10 langfuse.openai36.com
-192.168.2.10 drama-react.openai36.com
-192.168.2.10 drama-backend.openai36.com
 # End of section
 EOF
