@@ -6,6 +6,7 @@
 - 根目录 `main.py` 仅作为 FastAPI 轻入口，保留应用初始化、router 注册、`/healthy` 和启动代码；其他接口实现放在 `tanqi/app/` 下对应的 app 层 resource 文件。
 - `tanqi/app/` 是应用层，负责 FastAPI 路由、请求参数合法性校验、响应组装、依赖注入与异常到 HTTP 响应的转换。路由文件名以 `_resource.py` 结尾。
 - Resource 文件中的 `APIRouter` 变量统一命名为 `api_router`；在 `main.py` 导入时再通过 `as` 改成具体业务 router 名称。
+- OpenAPI 接口按所在文件设置 tag。tag 名取不含 `.py` 的文件名并转换为首字母大写的驼峰形式，例如 `monitor_task_resource.py` 使用 `MonitorTaskResource`；Resource 文件统一在 `APIRouter` 的 `tags` 参数中设置，`main.py` 中的接口使用 `Main`。
 - `tanqi/service/` 是服务层，负责业务编排和外部服务调用，不依赖 `app` 层。服务文件名以 `_service.py` 结尾。
 - `tanqi/eao/` 是数据访问层，负责持久化读写，不依赖 `service` 和 `app` 层。数据访问文件名以 `_repository.py` 结尾。
 - `tanqi/dependency/` 专门放 FastAPI 依赖注入定义，统一使用 `Annotated[..., Depends(...)]` 类型别名。
