@@ -31,7 +31,7 @@ BRANCH_NAME=$4
 
 echo "Building package: $PACKAGE_NAME, version: $PACKAGE_VERSION, for platform: $TARGET_PLATFORM, branch: $BRANCH_NAME"
 
-mvn clean package
+mvn clean compile checkstyle:check pmd:check package
 
 CACHE_BRANCH=$(echo "$BRANCH_NAME" | tr '/:' '--')
 docker buildx build --builder container-builder \
