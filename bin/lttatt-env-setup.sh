@@ -8,7 +8,7 @@ if [ -f ~/.npmrc ]; then
 fi
 
 cat > ~/.npmrc << EOF
-registry=https://registry.npmmirror.com/
+registry=https://nexus.openai36.com/repository/npm-all/
 electron_mirror=https://npmmirror.com/mirrors/electron/
 EOF
 cat "$npmrc_auth_lines" >> ~/.npmrc
@@ -23,8 +23,8 @@ mkdir -p ~/bin
 cat > ~/.bashrc << EOF
 export PATH="\$PATH:~/bin:~/Workspaces/VsCode/lttatt-skill/bin:/c/Program Files/GitHub CLI:/c/Program Files/Docker/Docker/resources/bin"
 
-if [ -f "\$HOME/.local/bin/env" ]; then
-  . "\$HOME/.local/bin/env"
+if [ -f "~/.local/bin/env" ]; then
+  . "~/.local/bin/env"
 fi
 EOF
 
@@ -40,9 +40,9 @@ cat > ~/.m2/settings.xml << EOF
     <mirrors>
         <mirror>
             <id>mirror</id>
-            <mirrorOf>central,jcenter,!rdc-releases,!rdc-snapshots</mirrorOf>
+            <mirrorOf>*</mirrorOf>
             <name>mirror</name>
-            <url>https://maven.aliyun.com/nexus/content/groups/public</url>
+            <url>https://nexus.openai36.com/repository/maven-all</url>
         </mirror>
     </mirrors>
 </settings>
@@ -67,3 +67,11 @@ git config --global gui.encoding utf-8
 git config --global core.autocrlf false
 git config --global core.longpaths true
 git config --global credential.helper store
+
+mkdir -p "$(cygpath -u "$APPDATA")/uv"
+cat > "$(cygpath -u "$APPDATA")/uv/uv.toml" <<'EOF'
+[[index]]
+name = "nexus"
+url = "https://nexus.openai36.com/repository/pypi-all/simple"
+default = true
+EOF
