@@ -182,6 +182,7 @@
 ## Java 风格
 
 - Java 版本为 21，尽量使用较新的语言特性。
+- 编写或修改的代码必须满足 SonarQube、Checkstyle 和 PMD 的要求。
 - 优先使用 `var`、lambda 和 Stream API，但不要为了“现代”牺牲可读性。
 - 代码格式遵循 google-java-format，当前 Java 缩进表现为 2 空格。
 - 依赖注入沿用 `jakarta.inject.Inject` 字段注入风格。

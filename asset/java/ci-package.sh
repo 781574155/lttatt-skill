@@ -34,10 +34,15 @@ echo "Building package: $PACKAGE_NAME, version: $PACKAGE_VERSION, for platform: 
 mvn clean compile checkstyle:check pmd:check package
 
 CACHE_BRANCH=$(echo "$BRANCH_NAME" | tr '/:' '--')
+RUNTIME_STAGE=runtime-with-coverage
+if [[ "$BRANCH_NAME" == release* || "$PACKAGE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	RUNTIME_STAGE=runtime
+fi
 docker buildx build --builder container-builder \
 	--cache-from=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-master \
 	--cache-from=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-"$CACHE_BRANCH" \
 	--cache-to=type=registry,ref=registry.openai36.com/tanqi/"$PACKAGE_NAME":buildcache-"$CACHE_BRANCH",mode=max \
+	--target "$RUNTIME_STAGE" \
 	--ulimit nofile=65536:65536 \
 	--build-arg PACKAGE_VERSION="$PACKAGE_VERSION" \
 	--push \
