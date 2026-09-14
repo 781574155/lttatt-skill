@@ -12,6 +12,7 @@ jobs:
     name: Lint
     runs-on: arc-runner-set-k8s
     permissions:
+      contents: write
       packages: read
       statuses: write
     steps:
@@ -46,4 +47,3 @@ jobs:
           commit_message: "chore: fix linting issues"
           commit_user_name: super-linter[bot]
           commit_user_email: super-linter@bots.noreply.github.com
-          skip_fetch: true

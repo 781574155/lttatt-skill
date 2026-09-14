@@ -28,9 +28,8 @@ lint:
 		exit 1; \
 	fi
 
-package:
-	@echo "Building Docker image for $(PACKAGE_NAME):v$(PACKAGE_VERSION)..."
-	docker build --push --platform=$(TARGET_PLATFORM) -t $(DOCKER_REGISTRY)$(PACKAGE_NAME):v$(PACKAGE_VERSION) .
+package: lint
+	@echo "Pass"
 
 git-check:
 	@if [ -n "$$(git status --porcelain)" ]; then \

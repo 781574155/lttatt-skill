@@ -1,0 +1,140 @@
+name: Release to Discourse
+
+on:
+  release:
+    types:
+      - published
+
+permissions: {}
+
+concurrency:
+  group: release-discourse-${{ github.repository_id }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: 发布版本公告到 Discourse
+    if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
+    runs-on: arc-runner-set
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+
+      - name: 加载应用配置
+        shell: bash
+        run: |
+          if [ -f .github/env ]; then
+            cat .github/env >> "$GITHUB_ENV"
+          fi
+
+      - name: 创建版本公告
+        uses: actions/github-script@v9.0.0
+        env:
+          DISCOURSE_URL: ${{ vars.DISCOURSE_URL }}
+          DISCOURSE_CATEGORY_ID: ${{ vars.DISCOURSE_CATEGORY_ID }}
+          DISCOURSE_API_USERNAME: ${{ vars.DISCOURSE_API_USERNAME }}
+          DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_API_KEY }}
+        with:
+          script: |
+            const { createHash } = require("node:crypto");
+            const release = context.payload.release;
+            if (!/^v\d+\.\d+\.\d+$/.test(release.tag_name)) {
+              core.info("标签不符合 va.b.c 格式，跳过公告。");
+              return;
+            }
+
+            const required = [
+              "DISCOURSE_URL",
+              "DISCOURSE_CATEGORY_ID",
+              "DISCOURSE_API_USERNAME",
+              "DISCOURSE_API_KEY",
+            ];
+            for (const name of required) {
+              if (!process.env[name]?.trim()) {
+                throw new Error(`请先配置 GitHub Actions ${name === "DISCOURSE_API_KEY" ? "Secret" : "Variable"}：${name}`);
+              }
+            }
+
+            const baseUrl = new URL(`${process.env.DISCOURSE_URL.trim().replace(/\/+$/, "")}/`);
+            if (baseUrl.protocol !== "https:" || baseUrl.username || baseUrl.password || baseUrl.search || baseUrl.hash) {
+              throw new Error("DISCOURSE_URL 必须是 HTTPS 论坛地址，不能包含凭据、查询参数或片段。");
+            }
+            const categoryValue = process.env.DISCOURSE_CATEGORY_ID.trim();
+            const category = Number(categoryValue);
+            if (!/^\d+$/.test(categoryValue) || !Number.isSafeInteger(category) || category <= 0) {
+              throw new Error("DISCOURSE_CATEGORY_ID 必须是分类的正整数 ID。");
+            }
+
+            const headers = {
+              Accept: "application/json",
+              "Api-Key": process.env.DISCOURSE_API_KEY.trim(),
+              "Api-Username": process.env.DISCOURSE_API_USERNAME.trim(),
+            };
+            const request = (url, options = {}) =>
+              fetch(url, {
+                ...options,
+                headers,
+                redirect: "manual",
+                signal: AbortSignal.timeout(60_000),
+              });
+            const externalId = createHash("sha256")
+              .update(`${context.payload.repository.id}:${release.tag_name}`)
+              .digest("hex")
+              .slice(0, 48);
+
+            // 按仓库和标签去重，Release 删除重建或请求超时后重跑也复用同一主题。
+            const lookup = await request(new URL(`t/external_id/${externalId}.json`, baseUrl));
+            if (lookup.status !== 404) {
+              let existing = lookup;
+              if (lookup.status === 301 || lookup.status === 302) {
+                const location = lookup.headers.get("location");
+                if (!location) throw new Error("Discourse 主题查询缺少重定向地址。");
+                const topicUrl = new URL(location, baseUrl);
+                if (topicUrl.origin !== baseUrl.origin || !topicUrl.pathname.startsWith(`${baseUrl.pathname}t/`)) {
+                  throw new Error("Discourse 主题查询返回了异常重定向，请检查论坛地址。");
+                }
+                existing = await request(topicUrl);
+              }
+              if (!existing.ok) {
+                throw new Error(`Discourse 主题查询失败（HTTP ${existing.status}），已停止发布。`);
+              }
+              const topic = await existing.json();
+              if (!Number.isSafeInteger(topic.id) || topic.id <= 0) {
+                throw new Error("Discourse 主题查询未返回有效主题 ID，已停止发布。");
+              }
+              core.info(`版本公告已存在，跳过创建：${new URL(`t/${topic.id}`, baseUrl).href}`);
+              return;
+            }
+
+            const appName = process.env.APP_NAME?.trim() || context.repo.repo;
+            const title = `${appName} ${release.tag_name} 版本发布`;
+            const releaseNotes = (release.body || "")
+              .split("**Full Changelog**")[0]
+              .replace(/^([ \t]*#{1,6}[ \t]+)What['’]s Changed[ \t]*\r?$/gm, "$1更新内容")
+              .replace(
+                / by @\S+ in https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)[ \t]*\r?$/gm,
+                " ($1)",
+              )
+              .trim();
+            const raw = releaseNotes || `${context.repo.repo} ${release.tag_name} 已发布。`;
+            const response = await request(new URL("posts.json", baseUrl), {
+              method: "POST",
+              body: new URLSearchParams({ title, raw, category: String(category), external_id: externalId }),
+            });
+            if (!response.ok) {
+              throw new Error(`Discourse 发布失败（HTTP ${response.status}），请检查 API 权限、分类和论坛发帖限制。`);
+            }
+            const post = await response.json();
+            if (post.action === "enqueued") {
+              throw new Error("公告已进入 Discourse 审核队列，请先完成论坛审核，再重跑任务，避免重复提交审核。");
+            }
+            if (!Number.isSafeInteger(post.topic_id) || post.topic_id <= 0) {
+              throw new Error("Discourse 未返回有效主题 ID，请检查论坛是否已收到公告后再重跑。");
+            }
+            core.info(`版本公告已发布：${new URL(`t/${post.topic_id}`, baseUrl).href}`);

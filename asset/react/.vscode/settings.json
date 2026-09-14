@@ -1,3 +1,8 @@
 {
-  "editor.formatOnSave": false
+  "editor.formatOnSave": false,
+  "files.exclude": {
+    "**/*.pyc": true,
+    "**/*.module.css.d.ts": true,
+    "**/node_modules": true
+  }
 }

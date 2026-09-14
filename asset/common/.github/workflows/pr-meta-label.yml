@@ -1,0 +1,194 @@
+name: PR Meta Label
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - unlabeled
+      - synchronize
+
+permissions:
+  pull-requests: read
+
+jobs:
+  prepare-meta:
+    name: prepare-meta
+    if: github.event.action == 'labeled' && github.event.label.name == 'meta:prepare'
+    runs-on: arc-runner-set
+    timeout-minutes: 35
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Generate and update PR metadata
+        uses: actions/github-script@v9.0.0
+        env:
+          TQ_AUTHORIZATION: ${{ secrets.LTTATT_GROUND_TQ_AUTHORIZATION }}
+        with:
+          script: |
+            const { setTimeout: delay } = require("node:timers/promises");
+            const params = {
+              ...context.repo,
+              pull_number: context.payload.pull_request.number,
+            };
+            const isPreparing = (pr) =>
+              pr.state === "open" && pr.labels.some((label) => label.name === "meta:prepare");
+            const { data: original } = await github.rest.pulls.get(params);
+
+            if (!isPreparing(original) || original.head.sha !== context.payload.pull_request.head.sha) {
+              core.info("PR 已关闭、已移除 meta:prepare 标签或已有新提交，跳过更新。");
+              return;
+            }
+
+            const authorization = process.env.TQ_AUTHORIZATION?.trim();
+            if (!authorization) {
+              core.setFailed("请先配置 GitHub Actions Secret：LTTATT_GROUND_TQ_AUTHORIZATION。");
+              return;
+            }
+
+            const url = new URL(
+              `/backend-api/user/repos/${encodeURIComponent(context.repo.repo)}/pull-requests/${params.pull_number}/meta`,
+              "https://www.lttatt.com",
+            );
+            const fetchMetadata = async () => {
+              let result;
+              try {
+                const response = await fetch(url, {
+                  method: "GET",
+                  headers: {
+                    Accept: "application/json",
+                    "tq-authorization": authorization,
+                  },
+                  redirect: "error",
+                  signal: AbortSignal.timeout(300_000),
+                });
+
+                if (!response.ok) {
+                  return { error: `PR 元数据接口请求失败（HTTP ${response.status}）` };
+                }
+
+                result = await response.json();
+              } catch {
+                return { error: "PR 元数据接口请求失败、超时或返回无效 JSON" };
+              }
+
+              const metadata = result?.data;
+              if (
+                result?.success !== true ||
+                typeof metadata?.title !== "string" ||
+                typeof metadata?.description !== "string"
+              ) {
+                return { error: "PR 元数据接口返回失败或字段不符合要求" };
+              }
+
+              const title = metadata.title.trim();
+              const body = metadata.description.trim();
+              if (!title || title.length > 100 || /[\r\n]/.test(title) || !body || body.length > 60_000) {
+                return { error: "PR 元数据接口返回的标题或说明长度、格式不符合要求" };
+              }
+
+              return { title, body };
+            };
+
+            const maxRetries = 5;
+            let metadata;
+            for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+              metadata = await fetchMetadata();
+              if (!metadata.error) break;
+
+              if (attempt < maxRetries) {
+                core.warning(`${metadata.error}，5 秒后进行第 ${attempt + 1}/${maxRetries} 次重试。`);
+                await delay(5_000);
+              }
+            }
+
+            if (metadata.error) {
+              core.setFailed(`${metadata.error}，已重试 ${maxRetries} 次，保留原 PR 标题和说明。`);
+              return;
+            }
+            const { title, body } = metadata;
+
+            const { data: current } = await github.rest.pulls.get(params);
+            if (
+              !isPreparing(current) ||
+              current.head.sha !== original.head.sha ||
+              current.base.sha !== original.base.sha ||
+              current.title !== original.title ||
+              current.body !== original.body
+            ) {
+              core.warning("生成期间 PR 已变化，跳过更新；如需重新生成，请移除后重新添加 meta:prepare 标签。");
+              return;
+            }
+
+            await github.rest.pulls.update({ ...params, title, body });
+            const labelParams = { ...context.repo, issue_number: params.pull_number };
+            await github.rest.issues.removeLabel({ ...labelParams, name: "meta:prepare" });
+            await github.rest.issues.addLabels({ ...labelParams, labels: ["meta:ready"] });
+
+            // 新提交可能在标签写入前到达，补查后撤销旧任务添加的就绪标签。
+            const { data: updated } = await github.rest.pulls.get(params);
+            if (
+              updated.state !== "open" ||
+              updated.head.sha !== original.head.sha ||
+              updated.base.sha !== original.base.sha
+            ) {
+              try {
+                await github.rest.issues.removeLabel({ ...labelParams, name: "meta:ready" });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+              core.warning("PR 在更新期间发生变化，已撤销 meta:ready 标签，请重新添加 meta:prepare。");
+              return;
+            }
+
+            core.info("已更新 PR 标题和说明，并将 meta:prepare 标签替换为 meta:ready。");
+
+  meta-label:
+    name: check-meta-label
+    needs: prepare-meta
+    if: always() && (github.event.action == 'labeled' || github.event.action == 'unlabeled')
+    runs-on: arc-runner-set
+    steps:
+      - name: Require exactly one meta:ready label
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = pr.labels
+              .map((label) => label.name)
+              .filter((name) => name === "meta:ready");
+
+            if (labels.length !== 1) {
+              core.setFailed(
+                `PR must have exactly one label "meta:ready".`
+              );
+            }
+
+  remove-meta-label:
+    name: remove-meta-label
+    if: github.event.action == 'synchronize'
+    runs-on: arc-runner-set
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove all meta labels
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels
+              .map((label) => label.name)
+              .filter((name) => name.startsWith("meta:"));
+
+            for (const name of labels) {
+              try {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: context.payload.pull_request.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }

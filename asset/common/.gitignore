@@ -641,6 +641,7 @@ pnpm-workspace.yaml
 /tmp.py
 !.env.lttatt
 .pnpm-store/
+*.module.css.d.ts
 
 ################# 项目定制 #################
 !assets/template/service/rabbitmq/

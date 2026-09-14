@@ -97,12 +97,8 @@
       return BannerResp.newInstance(bannerRepository.save(entity));
     }
 
-    @PutMapping("{id}")
-    @Operation(summary = "修改轮播图")
-    public void update(@PathVariable Integer id, @Valid @RequestBody BannerUpdateReq req) {}
-
     @PatchMapping("{id}")
-    @Operation(summary = "修改轮播图(部分)")
+    @Operation(summary = "修改轮播图")
     public void patch(@PathVariable Integer id, @Valid @RequestBody BannerPatchReq req) {}
 
     @DeleteMapping("{id}")
@@ -147,11 +143,12 @@
 - 需要拖动排序的 JPA 实体实现 `SortOrderEntity`，保留 `id`、`sortOrder` 的 getter/setter，并新增 `@NotNull private Long sortOrder = 1000L;`。
 - 对应 Repository 继承 `SortOrderRepository<Entity, Integer>`；如果还需要自定义查询，直接在该 Repository 中继续声明。
 - Liquibase 中新增或调整 `sort_order BIGINT NOT NULL DEFAULT 1000`，并为 `sort_order` 增加索引；不要通过 Entity 映射注解表达字段名、默认值或索引。
-- 创建新数据时注入 `SortOrderService`，用 `sortOrderService.nextSortOrder(repository)` 设置 `sortOrder`，不要手写固定值或自行查询最大值。
-- 列表接口按 `sortOrder` 降序、`createTime` 降序返回：`Sort.by(Sort.Direction.DESC, "sortOrder").and(Sort.by(Sort.Direction.DESC, "createTime"))`；公开查询可用 `OrderBySortOrderDescCreateTimeDesc` 风格的方法名。
-- 拖动接口使用 `POST {id}/move`，请求体使用公共 `MoveReq`，方法加 `@Transactional`，实现只调用 `sortOrderService.move(repository, id, req.prevId(), req.nextId(), "实体中文名")`。
+- 创建新数据时注入 `SortOrderService`，全表排序用 `sortOrderService.nextSortOrder(repository)` 设置 `sortOrder`，分组排序传入对应 `SortOrderScope`；不要手写固定值或自行查询最大值。
+- 列表接口按 `sortOrder` 降序返回；公开查询可用 `OrderBySortOrderDesc` 风格的方法名。
+- 拖动接口使用 `POST {id}/move`，请求体使用公共 `MoveReq`，方法加 `@Transactional`，实现只调用 `sortOrderService.move(repository, id, req.prevId(), req.nextId())`；分组排序需要传入对应 `SortOrderScope`。
 - 前端拖动后传目标位置相邻节点：移动到列表顶部时 `prev_id` 为空、`next_id` 为后一条 id；移动到底部时 `prev_id` 为前一条 id、`next_id` 为空；移动到中间时二者都传；二者不能同时为空，也不能等于当前 id。
-- 不要为单个实体重复实现排序间隔、重排或边界校验逻辑，统一复用 `SortOrderService` 和 `MoveReq`。
+- 顺序反转接口使用 `POST reverse`，不需要请求体，方法加 `@Transactional`，实现只调用 `sortOrderService.reverse(repository)`；分组排序需要传入对应 `SortOrderScope`，只反转当前分组，不得影响其他分组。
+- 不要为单个实体重复实现排序间隔、反转、重排或边界校验逻辑，统一复用 `SortOrderService`，拖动请求统一使用 `MoveReq`。
 
 ## Liquibase
 
@@ -184,6 +181,7 @@
 - Java 版本为 21，尽量使用较新的语言特性。
 - 编写或修改的代码必须满足 SonarQube、Checkstyle 和 PMD 的要求。
 - 优先使用 `var`、lambda 和 Stream API，但不要为了“现代”牺牲可读性。
+- 不要在代码中使用完整限定名，统一通过 `import` 导入后使用类名，例如使用 `StringUtils`，不要写 `org.apache.commons.lang3.StringUtils`。
 - 代码格式遵循 google-java-format，当前 Java 缩进表现为 2 空格。
 - 依赖注入沿用 `jakarta.inject.Inject` 字段注入风格。
 - 如果一个功能已有现成库函数可用，优先使用成熟库函数，不要自己实现；通用功能和知名库已提供的能力尤其如此。
