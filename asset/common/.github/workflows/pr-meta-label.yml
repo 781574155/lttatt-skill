@@ -144,14 +144,23 @@ jobs:
 
   meta-label:
     name: check-meta-label
-    needs: prepare-meta
-    if: always() && (github.event.action == 'labeled' || github.event.action == 'unlabeled')
+    needs: [prepare-meta, remove-meta-label]
+    if: always()
     runs-on: arc-runner-set
     steps:
       - name: Require exactly one meta:ready label
         uses: actions/github-script@v9.0.0
+        env:
+          DEPENDENCY_RESULTS: ${{ toJSON(needs) }}
         with:
           script: |
+            const dependencies = JSON.parse(process.env.DEPENDENCY_RESULTS);
+            for (const [name, job] of Object.entries(dependencies)) {
+              if (!["success", "skipped"].includes(job.result)) {
+                core.setFailed(`前置任务 ${name} 未正常完成（${job.result}），禁止合并。`);
+              }
+            }
+
             const { data: pr } = await github.rest.pulls.get({
               ...context.repo,
               pull_number: context.payload.pull_request.number,
