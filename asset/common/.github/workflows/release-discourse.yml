@@ -114,12 +114,19 @@ jobs:
 
             const appName = process.env.APP_NAME?.trim() || context.repo.repo;
             const title = `${appName} ${release.tag_name} 版本发布`;
+            const pullRequestUrl = String.raw`https://github\.com/[^/\s]+/[^/\s]+/pull/(\d+)`;
+            const releaseAttribution = new RegExp(
+              String.raw`[^\S\r\n]+by[^\S\r\n]+@\S+` +
+                String.raw`(?:[^\S\r\n]+(?:by|with)[^\S\r\n]+@\S+)*[^\S\r\n]+in[^\S\r\n]+` +
+                String.raw`(?:${pullRequestUrl}|\[[^\]\r\n]+\]\(${pullRequestUrl}\))[^\S\r\n]*\r?$`,
+              "gm",
+            );
             const releaseNotes = (release.body || "")
               .split("**Full Changelog**")[0]
               .replace(/^([ \t]*#{1,6}[ \t]+)What['’]s Changed[ \t]*\r?$/gm, "$1更新内容")
               .replace(
-                / by @\S+ in https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)[ \t]*\r?$/gm,
-                " ($1)",
+                releaseAttribution,
+                (_, plainNumber, markdownNumber) => ` (${plainNumber || markdownNumber})`,
               )
               .trim();
             const raw = releaseNotes || `${context.repo.repo} ${release.tag_name} 已发布。`;

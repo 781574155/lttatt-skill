@@ -1,4 +1,3 @@
-// @ts-ignore
 import { camelCase } from "lodash";
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -37,14 +36,19 @@ if (!upstream) {
   throw new Error("Missing UPSTREAM in .env.lttatt");
 }
 
-function customFunctionName(data: any) {
-  var name = data.operationId.indexOf("_") === -1 ? data.operationId : data.operationId.split("_")[0];
+interface OpenApiOperation {
+  operationId: string;
+  tags: string[];
+}
+
+function customFunctionName(data: OpenApiOperation) {
+  const name = data.operationId.indexOf("_") === -1 ? data.operationId : data.operationId.split("_")[0];
   return name === "delete" ? "deleteItem" : name;
 }
 
-function customTypeName(data: any) {
-  var funcName = customFunctionName(data);
-  var resourceName = camelCase(data.tags[0]);
+function customTypeName(data: OpenApiOperation) {
+  const funcName = customFunctionName(data);
+  const resourceName = camelCase(data.tags[0]);
   return `${funcName}__${resourceName.charAt(0).toUpperCase() + resourceName.slice(1)}`;
 }
 
@@ -58,4 +62,5 @@ export default {
     customFunctionName: customFunctionName,
     customTypeName: customTypeName,
   },
+  reactQuery: true,
 };

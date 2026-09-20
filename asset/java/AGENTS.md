@@ -164,6 +164,9 @@
 ## 异步、事件与消息
 
 - 模块内或下游副作用优先使用 Spring event：发布用 `ApplicationEventPublisher`，监听放在 Service 中使用 `@EventListener`。
+- `RefreshUiEvent` 类刷新事件尽量在变动入口发送：由 Resource 接口完成的修改（包括调用 Service 完成的修改），在 Resource 中触发，不要在 Service 中触发；只有在 Service 内部发生的变动，例如定时任务、异步处理、事件监听或自动处理，才在 Service 中触发。
+- 前后台接口的刷新事件必须隔离：所有后台接口的变更均不发送前台的 `RefreshUiEvent`，所有前台接口的变更也不发送后台的 `RefreshUiEvent`；此规则同样适用于接口调用的 Service 或事件监听器间接触发的刷新通知。
+- 刷新事件的接收用户、查询范围等可由 Service 查询并组装后返回，实际发布仍由对应变动入口负责，避免 Resource 和 Service 重复发送；涉及事务时继续复用提交后通知机制。
 - RabbitMQ 队列名集中维护在 `RabbitmqConfig.QUEUE_NAMES`。
 - 发送 MQ 优先走 `MqService`，消息体放 `export/type/mq/`，并使用 `@Valid` 校验。
 - 新增监听器使用 `@RabbitListener(queues = "...")`，队列名必须先加入 `RabbitmqConfig`。
@@ -182,8 +185,8 @@
 - 编写或修改的代码必须满足 SonarQube、Checkstyle 和 PMD 的要求。
 - 优先使用 `var`、lambda 和 Stream API，但不要为了“现代”牺牲可读性。
 - 不要在代码中使用完整限定名，统一通过 `import` 导入后使用类名，例如使用 `StringUtils`，不要写 `org.apache.commons.lang3.StringUtils`。
-- 代码格式遵循 google-java-format，当前 Java 缩进表现为 2 空格。
-- 依赖注入沿用 `jakarta.inject.Inject` 字段注入风格。
+- 编码遵循 Google Java Style Guide，代码格式使用 google-java-format，Java 缩进为 2 空格，单行不超过 100 个字符。
+- 依赖注入使用 `final` 字段和 Lombok `@RequiredArgsConstructor` 进行构造器注入。
 - 如果一个功能已有现成库函数可用，优先使用成熟库函数，不要自己实现；通用功能和知名库已提供的能力尤其如此。
 - 判断字符串是否为空时，统一使用 `StringUtils.isBlank` 或 `StringUtils.isNotBlank`。
 - 日志使用 Lombok `@Slf4j` 和 `{}` 占位符，不打印密码、token、密钥等敏感信息。

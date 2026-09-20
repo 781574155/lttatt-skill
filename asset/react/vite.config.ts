@@ -1,10 +1,15 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { codeInspectorPlugin } from "code-inspector-plugin";
-import { resolve } from "path";
+import { fileURLToPath, URL } from "node:url";
+import istanbul from "vite-plugin-istanbul";
 
 const env = loadEnv("lttatt", process.cwd(), "");
 const upstream = env.UPSTREAM?.replace(/\/$/, "");
+const coverageEnabled = process.env.VITE_COVERAGE === "true";
+const umamiEnabled = process.env.VITE_UMAMI_ENABLED === "true";
+const umamiWebsiteId = env.VITE_UMAMI_WEBSITE_ID?.trim() || "";
 
 if (!upstream) {
   throw new Error("Missing UPSTREAM in .env.lttatt");
@@ -13,15 +18,54 @@ if (!upstream) {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    umamiEnabled &&
+      umamiWebsiteId && {
+        name: "inject-umami",
+        transformIndexHtml: {
+          order: "pre",
+          handler: () => [
+            {
+              tag: "script",
+              attrs: {
+                defer: true,
+                src: "https://umami.lttatt.com/script.js",
+                "data-website-id": umamiWebsiteId,
+              },
+              injectTo: "head",
+            },
+          ],
+        },
+      },
     codeInspectorPlugin({
       bundler: "vite",
     }),
-
-    react(),
+    tailwindcss(),
+    react({
+      exclude: [/\/node_modules\//, /\/src\/http\/api\//],
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
+    coverageEnabled &&
+      istanbul({
+        include: "src/**/*",
+        exclude: ["src/http/api/**/*", "**/*.d.ts"],
+        requireEnv: false,
+        forceBuildInstrument: true,
+      }),
   ],
+  build: {
+    sourcemap: coverageEnabled ? "inline" : false,
+  },
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@canvas": fileURLToPath(new URL("./src/pages/Drama/Canvas", import.meta.url)),
+    },
+  },
+  css: {
+    modules: {
+      localsConvention: "camelCaseOnly",
     },
   },
   server: {
