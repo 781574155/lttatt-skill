@@ -10,9 +10,7 @@
             }
             steps {
                 script {
-                    def lockName = "deploy-${params.DEPLOY_HOST}-${params.APP_DIR}"
-
-                    lock(lockName) {
+                    lock("deploy-${params.DEPLOY_HOST}-${params.APP_DIR}") {
                         withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
                             def syncStatus = sh(script: "./ci-sync-upstream.sh", returnStatus: true)
                             if (syncStatus == 75) {
@@ -72,33 +70,86 @@
             }
             steps {
                 script {
-                    def lockName = "deploy-${params.DEPLOY_HOST}-${params.APP_DIR}"
+                    lock("deploy-${params.DEPLOY_HOST}-${params.APP_DIR}") {
+                        def remote = [:]
+                        remote.name = 'DeployHost'
+                        remote.host = params.DEPLOY_HOST
+                        remote.allowAnyHosts = true
 
-                    lock(lockName) {
-                        stage('Deploy') {
-                            def remote = [:]
-                            remote.name = 'DeployHost'
-                            remote.host = params.DEPLOY_HOST
-                            remote.allowAnyHosts = true
+                        withCredentials([usernamePassword(
+                            credentialsId: params.DEPLOY_HOST_CREDENTIALS_ID,
+                            usernameVariable: 'username',
+                            passwordVariable: 'password'
+                        )]) {
+                            remote.user = username
+                            remote.password = password
 
-                            withCredentials([usernamePassword(
-                                credentialsId: params.DEPLOY_HOST_CREDENTIALS_ID,
-                                usernameVariable: 'username',
-                                passwordVariable: 'password'
-                            )]) {
-                                remote.user = username
-                                remote.password = password
+                            stage('Deploy') {
                                 sshPut remote: remote, from: 'ci-deploy.sh', into: "/tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh"
                                 sshCommand remote: remote, command: "chmod +x /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh && /tmp/ci-deploy-${PACKAGE_NAME}-${PACKAGE_VERSION}.sh ${PACKAGE_NAME} ${PACKAGE_VERSION} '${params.APP_DIR}' '${params.COMPONENT_VAR_NAME}' '${params.COMPONENT_HEALTHY_URL}' '${params.HEALTHY_MAX_ATTEMPTS}'"
                             }
+
+                            if (!(env.BRANCH_NAME ==~ /^release.*/)) {
+                                def coverage = load 'ci-coverage.groovy'
+                                def coverageContext
+
+                                stage('Test') {
+                                    coverageContext = coverage.prepare(remote)
+                                    withEnv(['CI_DEFER_COVERAGE_REPORT=true']) {
+                                        sh "./ci-test.sh ${params.E2E_TEST_BASE_URL}"
+                                    }
+                                }
+
+                                stage('E2E Coverage') {
+                                    coverage.collect(remote, coverageContext)
+                                }
+                            } else {
+                                echo "Release branch detected, skip Test."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube') {
+            when {
+                allOf {
+                    not { branch pattern: 'master.*', comparator: 'REGEXP' }
+                    not { branch pattern: 'release.*', comparator: 'REGEXP' }
+                    not { tag pattern: 'v\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP' }
+                }
+            }
+            steps {
+                script {
+                    lock("sonarqube-${env.PACKAGE_NAME}") {
+                        stage('SonarQube Analysis') {
+                            withSonarQubeEnv('sonarqube-local') {
+                                withEnv(["SONAR_PROJECT_KEY=${env.PACKAGE_NAME}"]) {
+                                    sh 'bash ./ci-sonarqube.sh'
+                                }
+                            }
                         }
 
-                        if (!(env.BRANCH_NAME ==~ /^release.*/)) {
-                            stage('Test') {
-                                sh "./ci-test.sh ${params.E2E_TEST_BASE_URL}"
+                        stage('Quality Gate') {
+                            timeout(time: 10, unit: 'MINUTES') {
+                                def qualityGate = waitForQualityGate abortPipeline: false
+                                if (qualityGate.status != 'OK') {
+                                    withSonarQubeEnv('sonarqube-local') {
+                                        withEnv([
+                                            "SONAR_PROJECT_KEY=${env.PACKAGE_NAME}",
+                                            "SONAR_QUALITY_GATE_STATUS=${qualityGate.status}"
+                                        ]) {
+                                            sh '''./ci-sonarqube-report.sh \
+                                                  "$SONAR_HOST_URL" \
+                                                  "$SONAR_AUTH_TOKEN" \
+                                                  "$SONAR_PROJECT_KEY"
+                                            '''
+                                        }
+                                    }
+                                    error("SonarQube Quality Gate 未通过: ${qualityGate.status}")
+                                }
                             }
-                        } else {
-                            echo "Release branch detected, skip Test."
                         }
                     }
                 }
@@ -158,9 +209,19 @@
                         reportName: 'Playwright Report'
                     ])
                 }
+                if (fileExists('out/coverage/html/index.html')) {
+                    publishHTML(target: [
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'out/coverage/html',
+                        reportFiles: 'index.html',
+                        reportName: 'E2E Coverage Report'
+                    ])
+                }
             }
             archiveArtifacts(
-                artifacts: 'out/test-results/**/*',
+                artifacts: 'out/test-results/**/*,out/coverage/**/*,out/sonarqube/**/*',
                 allowEmptyArchive: true
             )
         }
