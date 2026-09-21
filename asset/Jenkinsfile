@@ -126,7 +126,7 @@
                         stage('SonarQube Analysis') {
                             withSonarQubeEnv('sonarqube-local') {
                                 withEnv(["SONAR_PROJECT_KEY=${env.PACKAGE_NAME}"]) {
-                                    sh 'bash ./ci-sonarqube.sh'
+                                    sh './ci-sonarqube.sh'
                                 }
                             }
                         }

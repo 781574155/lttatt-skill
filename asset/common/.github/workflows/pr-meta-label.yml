@@ -5,7 +5,6 @@ on:
     types:
       - labeled
       - unlabeled
-      - synchronize
 
 permissions:
   pull-requests: read
@@ -144,7 +143,7 @@ jobs:
 
   meta-label:
     name: check-meta-label
-    needs: [prepare-meta, remove-meta-label]
+    needs: [prepare-meta]
     if: always()
     runs-on: arc-runner-set
     steps:
@@ -173,31 +172,4 @@ jobs:
               core.setFailed(
                 `PR must have exactly one label "meta:ready".`
               );
-            }
-
-  remove-meta-label:
-    name: remove-meta-label
-    if: github.event.action == 'synchronize'
-    runs-on: arc-runner-set
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Remove all meta labels
-        uses: actions/github-script@v9.0.0
-        with:
-          script: |
-            const labels = context.payload.pull_request.labels
-              .map((label) => label.name)
-              .filter((name) => name.startsWith("meta:"));
-
-            for (const name of labels) {
-              try {
-                await github.rest.issues.removeLabel({
-                  ...context.repo,
-                  issue_number: context.payload.pull_request.number,
-                  name,
-                });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
             }
