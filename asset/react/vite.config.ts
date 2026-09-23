@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { codeInspectorPlugin } from "code-inspector-plugin";
 import { fileURLToPath, URL } from "node:url";
@@ -42,9 +43,10 @@ export default defineConfig({
     tailwindcss(),
     react({
       exclude: [/\/node_modules\//, /\/src\/http\/api\//],
-      babel: {
-        plugins: ["babel-plugin-react-compiler"],
-      },
+    }),
+    babel({
+      exclude: [/[/\\]node_modules[/\\]/, /[/\\]src[/\\]http[/\\]api[/\\]/, /\0rolldown\/runtime\.js/],
+      presets: [reactCompilerPreset()],
     }),
     coverageEnabled &&
       istanbul({
