@@ -4,4 +4,5 @@ set -e
 
 sonar-scanner-npm \
 	-Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+	-Dsonar.scm.disabled=true \
 	-Dsonar.python.coverage.reportPaths="$WORKSPACE/out/coverage/coverage.xml"
