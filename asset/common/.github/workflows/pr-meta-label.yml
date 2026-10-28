@@ -24,7 +24,6 @@ jobs:
           TQ_AUTHORIZATION: ${{ secrets.LTTATT_GROUND_TQ_AUTHORIZATION }}
         with:
           script: |
-            const { setTimeout: delay } = require("node:timers/promises");
             const params = {
               ...context.repo,
               pull_number: context.payload.pull_request.number,
@@ -88,20 +87,9 @@ jobs:
               return { title, body };
             };
 
-            const maxRetries = 5;
-            let metadata;
-            for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-              metadata = await fetchMetadata();
-              if (!metadata.error) break;
-
-              if (attempt < maxRetries) {
-                core.warning(`${metadata.error}，5 秒后进行第 ${attempt + 1}/${maxRetries} 次重试。`);
-                await delay(5_000);
-              }
-            }
-
+            const metadata = await fetchMetadata();
             if (metadata.error) {
-              core.setFailed(`${metadata.error}，已重试 ${maxRetries} 次，保留原 PR 标题和说明。`);
+              core.setFailed(`${metadata.error}，保留原 PR 标题和说明。`);
               return;
             }
             const { title, body } = metadata;

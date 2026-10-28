@@ -8,4 +8,6 @@
     <suppress files=".*" checks="CustomImportOrder"/>
     <suppress files=".*" checks="VariableDeclarationUsageDistance"/>
     <suppress files=".*" checks="TextBlockGoogleStyleFormatting"/>
+    <suppress files=".*" checks="LineLength"/>
+    <suppress files=".*" checks="AbbreviationAsWordInName"/>
 </suppressions>
