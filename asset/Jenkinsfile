@@ -5,14 +5,18 @@
                     branch 'master'
                 }
                 expression {
-                    params.BUILD_MODE == 'UpstreamBuildSuccess'
+                    params.BUILD_MODE?.startsWith('UpstreamBuildSuccess:')
                 }
             }
             steps {
                 script {
                     lock("deploy-${params.DEPLOY_HOST}-${params.APP_DIR}") {
                         withCredentials([gitUsernamePassword(credentialsId: params.CREDENTIALS_ID, gitToolName: 'Default')]) {
-                            def syncStatus = sh(script: "./ci-sync-upstream.sh", returnStatus: true)
+                            def syncStatus
+                            def upstreamName = params.BUILD_MODE.substring('UpstreamBuildSuccess:'.length())
+                            withEnv(["UPSTREAM_NAME=${upstreamName}"]) {
+                                syncStatus = sh(script: './ci-sync-upstream.sh "$UPSTREAM_NAME"', returnStatus: true)
+                            }
                             if (syncStatus == 75) {
                                 currentBuild.result = 'ABORTED'
                                 error('Upstream deployed version does not start with master, abort packaging.')

@@ -24,21 +24,23 @@ ci_script_log_exit() {
 
 trap 'ci_script_log_exit "$?"' EXIT
 
-if [ -f ".env.lttatt" ]; then
-	set -a
-	# shellcheck source=/dev/null
-	. ./.env.lttatt
-	set +a
+if [ "$#" -ne 1 ] || [ -z "$1" ]; then
+	echo "Usage: ${CI_SCRIPT_NAME} UPSTREAM_NAME" >&2
+	exit 1
 fi
+UPSTREAM_NAME=$1
 
-: "${UPSTREAM:?Missing UPSTREAM in .env.lttatt}"
-UPSTREAM="${UPSTREAM%/}"
+UPSTREAM_URL=$(jq -er --arg name "${UPSTREAM_NAME}" '
+first(.upstreams[] | select(.name == $name) | .url | select(type == "string" and length > 0))
+// error("未找到上游 \($name) 的有效 URL")
+| rtrimstr("/")
+' lttatt.json)
 
-DEPLOYMENT_INFO=$(curl -sf -X GET "${UPSTREAM}/backend-api/pub/deployment-info")
+DEPLOYMENT_INFO=$(curl -sf -X GET "${UPSTREAM_URL}/backend-api/pub/deployment-info")
 DEPLOYED_VERSION=$(printf '%s' "${DEPLOYMENT_INFO}" | jq -r '.data.version // ""')
-echo "Upstream deployed version: ${DEPLOYED_VERSION}"
+echo "Upstream ${UPSTREAM_NAME} deployed version: ${DEPLOYED_VERSION}"
 if [[ "${DEPLOYED_VERSION}" != master* ]]; then
-	echo "Upstream deployed version does not start with master, abort packaging."
+	echo "Upstream ${UPSTREAM_NAME} deployed version does not start with master, abort packaging."
 	exit 75
 fi
 
@@ -48,20 +50,21 @@ git config http.proxy "${TANQI_HTTPS_PROXY}"
 
 if [ -f "openapi2ts.config.ts" ]; then
 	cp -r /openapi2ts/node_modules ./
-	pnpm openapi2ts
-	git add src/http/api
+	pnpm openapi2ts "${UPSTREAM_NAME}"
+	git add "src/http/api/${UPSTREAM_NAME}"
 elif [ -f "requirements.txt" ]; then
-	mkdir -p tanqi/mq
+	upstream_directory="tanqi/mq/${UPSTREAM_NAME//-/_}"
+	mkdir -p "${upstream_directory}"
 	datamodel-codegen \
-		--url "${UPSTREAM}/backend-api/v3/api-docs/mq-types" \
+		--url "${UPSTREAM_URL}/backend-api/v3/api-docs/mq-types" \
 		--input-file-type openapi \
 		--formatters ruff-check ruff-format \
 		--use-subclass-enum \
 		--no-use-union-operator \
 		--disable-timestamp \
 		--output-model-type pydantic_v2.BaseModel \
-		--output tanqi/mq/types.py
-	git add tanqi/mq/types.py
+		--output "${upstream_directory}/types.py"
+	git add "${upstream_directory}/types.py"
 fi
 
 git diff --cached --quiet && echo "No changes to commit" && exit 0
