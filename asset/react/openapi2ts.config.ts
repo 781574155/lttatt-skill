@@ -1,66 +1,62 @@
-import { camelCase } from "lodash";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import lodash from "lodash";
+import type { GenerateServiceProps } from "@easyfollow/openapi";
+import { getUpstreamNamespace, getUpstreamPrefix, loadUpstreams } from "./scripts/lttatt-config.ts";
 
-function parseEnvFile(filePath: string): Record<string, string> {
-  try {
-    const content = readFileSync(filePath, "utf-8");
-    return Object.fromEntries(
-      content
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line && !line.startsWith("#"))
-        .map((line) => {
-          const idx = line.indexOf("=");
-          return idx === -1
-            ? null
-            : [
-                line.slice(0, idx).trim(),
-                line
-                  .slice(idx + 1)
-                  .trim()
-                  .replace(/^(['"])(.*)\1$/, "$2"),
-              ];
-        })
-        .filter(Boolean) as [string, string][],
-    );
-  } catch {
-    return {};
-  }
-}
-
-const env = parseEnvFile(resolve(process.cwd(), ".env.lttatt"));
-const upstream = (env.UPSTREAM ?? process.env.UPSTREAM ?? "").replace(/\/$/, "");
-
-if (!upstream) {
-  throw new Error("Missing UPSTREAM in .env.lttatt");
-}
+const { camelCase } = lodash;
+const RESERVED_FUNCTION_NAMES = new Set(
+  (
+    "arguments await break case catch class const continue debugger default delete do else enum eval export extends " +
+    "false finally for function if implements import in instanceof interface let new null package private protected " +
+    "public return static super switch this throw true try typeof var void while with yield"
+  ).split(" "),
+);
 
 interface OpenApiOperation {
-  operationId: string;
-  tags: string[];
+  operationId?: string;
+  tags?: string[];
 }
 
 function customFunctionName(data: OpenApiOperation) {
-  const name = data.operationId.indexOf("_") === -1 ? data.operationId : data.operationId.split("_")[0];
-  return name === "delete" ? "deleteItem" : name;
+  if (!data.operationId) {
+    throw new Error("OpenAPI 接口缺少 operationId");
+  }
+  const name = data.operationId.split("_")[0];
+  return RESERVED_FUNCTION_NAMES.has(name) ? `${name}Item` : name;
 }
 
 function customTypeName(data: OpenApiOperation) {
   const funcName = customFunctionName(data);
-  const resourceName = camelCase(data.tags[0]);
+  const resourceName = camelCase(data.tags?.[0] ?? "");
   return `${funcName}__${resourceName.charAt(0).toUpperCase() + resourceName.slice(1)}`;
 }
 
-export default {
-  schemaPath: `${upstream}/backend-api/v3/api-docs`,
-  apiPrefix: '"/backend-api"',
-  serversPath: "./src/http",
-  requestImportStatement: 'import request from "@/http/request";',
-  isCamelCase: false,
-  hook: {
-    customFunctionName: customFunctionName,
-    customTypeName: customTypeName,
-  },
-  reactQuery: true,
-};
+export default loadUpstreams().map(
+  (upstream) =>
+    ({
+      schemaPath: `${upstream.url}/backend-api/v3/api-docs`,
+      serversPath: "./src/http/api",
+      projectName: upstream.name,
+      namespace: getUpstreamNamespace(upstream),
+      requestImportStatement: 'import request from "@/http/request";',
+      isCamelCase: false,
+      hook: {
+        customFunctionName,
+        customTypeName,
+        afterOpenApiDataInited(data) {
+          if (!data?.openapi?.startsWith("3.") || !data.info || !data.paths) {
+            throw new Error(`上游 ${upstream.name} 未返回有效的 OpenAPI 3 文档`);
+          }
+
+          // 在生成前加入服务前缀，让请求路径和普通、无限查询的 Query Key 一起隔离。
+          const paths = Object.fromEntries(
+            Object.entries(data.paths).map(([path, operation]) => {
+              const backendPath = path.replace(/^\/backend-api(?=\/|$)/, "");
+              return [`${getUpstreamPrefix(upstream)}${backendPath || "/"}`, operation];
+            }),
+          );
+          return { ...data, paths };
+        },
+      },
+      reactQuery: true,
+    }) satisfies GenerateServiceProps,
+);

@@ -1,20 +1,37 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type ProxyOptions } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { codeInspectorPlugin } from "code-inspector-plugin";
 import { fileURLToPath, URL } from "node:url";
 import istanbul from "vite-plugin-istanbul";
+import { getUpstreamPrefix, loadUpstreams } from "./scripts/lttatt-config.ts";
+
+const compilerPreset = reactCompilerPreset();
+compilerPreset.rolldown.filter = {
+  ...compilerPreset.rolldown.filter,
+  id: {
+    exclude: [/\/node_modules\//, /\/src\/http\/api\//],
+  },
+};
 
 const env = loadEnv("lttatt", process.cwd(), "");
-const upstream = env.UPSTREAM?.replace(/\/$/, "");
 const coverageEnabled = process.env.VITE_COVERAGE === "true";
 const umamiEnabled = process.env.VITE_UMAMI_ENABLED === "true";
 const umamiWebsiteId = env.VITE_UMAMI_WEBSITE_ID?.trim() || "";
 
-if (!upstream) {
-  throw new Error("Missing UPSTREAM in .env.lttatt");
-}
+const proxy = Object.fromEntries(
+  loadUpstreams().map((upstream) => {
+    const prefix = getUpstreamPrefix(upstream);
+    const options: ProxyOptions = {
+      target: upstream.url,
+      changeOrigin: true,
+      secure: false,
+      rewrite: (path) => `/backend-api${path.slice(prefix.length)}`,
+    };
+    return [`${prefix}/`, options];
+  }),
+);
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -39,14 +56,14 @@ export default defineConfig({
       },
     codeInspectorPlugin({
       bundler: "vite",
+      importClient: "file",
     }),
     tailwindcss(),
     react({
       exclude: [/\/node_modules\//, /\/src\/http\/api\//],
     }),
     babel({
-      exclude: [/[/\\]node_modules[/\\]/, /[/\\]src[/\\]http[/\\]api[/\\]/, /\0rolldown\/runtime\.js/],
-      presets: [reactCompilerPreset()],
+      presets: [compilerPreset],
     }),
     coverageEnabled &&
       istanbul({
@@ -62,21 +79,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@canvas": fileURLToPath(new URL("./src/pages/Drama/Canvas", import.meta.url)),
-    },
-  },
-  css: {
-    modules: {
-      localsConvention: "camelCaseOnly",
     },
   },
   server: {
-    proxy: {
-      "/backend-api": {
-        target: upstream,
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    proxy,
   },
 });
