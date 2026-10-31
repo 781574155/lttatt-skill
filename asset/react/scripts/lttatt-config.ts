@@ -7,6 +7,16 @@ export interface Upstream {
   url: string;
 }
 
+export interface ProxyConfig {
+  location: string;
+  proxy_pass: string;
+}
+
+interface LttattConfig {
+  upstreams: Upstream[];
+  proxies: ProxyConfig[];
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -42,7 +52,33 @@ function parseUpstream(value: unknown): Upstream {
   return { name, type, url: parsedUrl.origin };
 }
 
-export function loadUpstreams(): Upstream[] {
+function parseProxy(value: unknown): ProxyConfig {
+  if (!isRecord(value)) {
+    throw new Error("lttatt.json 的每个 proxy 必须是对象");
+  }
+
+  const { location, proxy_pass } = value;
+  if (typeof location !== "string" || !/^\/[^\s?#{};"'$\\]*$/.test(location)) {
+    throw new Error("proxy.location 必须是以 / 开头的路径，不能包含空白、查询参数或配置特殊字符");
+  }
+  if (
+    typeof proxy_pass !== "string" ||
+    !/^https?:\/\//i.test(proxy_pass) ||
+    /[\s{};"'$\\]/.test(proxy_pass) ||
+    !URL.canParse(proxy_pass)
+  ) {
+    throw new Error(`代理 ${location} 的 proxy_pass 必须是有效的 HTTP 或 HTTPS 地址`);
+  }
+
+  const target = new URL(proxy_pass);
+  if (target.username || target.password || target.search || target.hash) {
+    throw new Error(`代理 ${location} 的 proxy_pass 不能包含认证信息、查询参数或片段`);
+  }
+
+  return { location, proxy_pass };
+}
+
+export function loadLttattConfig(): LttattConfig {
   const config: unknown = JSON.parse(readFileSync(resolve("lttatt.json"), "utf8"));
   if (!isRecord(config) || !Array.isArray(config.upstreams) || config.upstreams.length === 0) {
     throw new Error("lttatt.json 必须包含非空的 upstreams 列表");
@@ -56,7 +92,24 @@ export function loadUpstreams(): Upstream[] {
     }
     names.add(upstream.name);
   }
-  return upstreams;
+
+  if (config.proxies !== undefined && !Array.isArray(config.proxies)) {
+    throw new Error("lttatt.json 的 proxies 必须是列表");
+  }
+  const proxies = (config.proxies ?? []).map(parseProxy);
+  const locations = new Set(upstreams.map((upstream) => `${getUpstreamPrefix(upstream)}/`));
+  for (const proxy of proxies) {
+    if (locations.has(proxy.location)) {
+      throw new Error(`代理路径重复：${proxy.location}`);
+    }
+    locations.add(proxy.location);
+  }
+
+  return { upstreams, proxies };
+}
+
+export function loadUpstreams(): Upstream[] {
+  return loadLttattConfig().upstreams;
 }
 
 export function getUpstreamPrefix(upstream: Upstream): string {

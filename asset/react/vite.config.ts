@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { codeInspectorPlugin } from "code-inspector-plugin";
 import { fileURLToPath, URL } from "node:url";
 import istanbul from "vite-plugin-istanbul";
-import { getUpstreamPrefix, loadUpstreams } from "./scripts/lttatt-config.ts";
+import { getUpstreamPrefix, loadLttattConfig } from "./scripts/lttatt-config.ts";
 
 const compilerPreset = reactCompilerPreset();
 compilerPreset.rolldown.filter = {
@@ -20,17 +20,27 @@ const coverageEnabled = process.env.VITE_COVERAGE === "true";
 const umamiEnabled = process.env.VITE_UMAMI_ENABLED === "true";
 const umamiWebsiteId = env.VITE_UMAMI_WEBSITE_ID?.trim() || "";
 
+const { upstreams, proxies } = loadLttattConfig();
 const proxy = Object.fromEntries(
-  loadUpstreams().map((upstream) => {
-    const prefix = getUpstreamPrefix(upstream);
-    const options: ProxyOptions = {
-      target: upstream.url,
-      changeOrigin: true,
-      secure: false,
-      rewrite: (path) => `/backend-api${path.slice(prefix.length)}`,
-    };
-    return [`${prefix}/`, options];
-  }),
+  [
+    ...upstreams.map((upstream) => ({
+      location: `${getUpstreamPrefix(upstream)}/`,
+      proxy_pass: `${upstream.url}/backend-api/`,
+    })),
+    ...proxies,
+  ]
+    .sort((a, b) => b.location.length - a.location.length)
+    .map(({ location, proxy_pass }) => {
+      const target = new URL(proxy_pass);
+      const hasTargetPath = /^https?:\/\/[^/]+\//i.test(proxy_pass);
+      const options: ProxyOptions = {
+        target: target.origin,
+        changeOrigin: true,
+        secure: false,
+        rewrite: hasTargetPath ? (path) => `${target.pathname}${path.slice(location.length)}` : undefined,
+      };
+      return [location, options];
+    }),
 );
 
 // https://vite.dev/config/
