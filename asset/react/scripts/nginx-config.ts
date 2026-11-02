@@ -13,10 +13,16 @@ const locations = [
     proxy_pass: `http://${upstream.name}:8080/backend-api/`,
   })),
   ...proxies,
-].map(
-  (proxy) => `location ^~ ${proxy.location} {
+].map((proxy) => {
+  const target = new URL(proxy.proxy_pass);
+  const cookiePath = target.pathname.replace(/\/$/, "");
+  const cookieRewrite = cookiePath
+    ? `    proxy_cookie_path ${cookiePath} ${proxy.location.replace(/\/$/, "") || "/"};\n`
+    : "";
+  const sslServerName = target.protocol === "https:" ? "    proxy_ssl_server_name on;\n" : "";
+  return `location ^~ ${proxy.location} {
     proxy_pass ${proxy.proxy_pass};
-${new URL(proxy.proxy_pass).protocol === "https:" ? "    proxy_ssl_server_name on;\n" : ""}    proxy_set_header Host $proxy_host;
+${cookieRewrite}${sslServerName}    proxy_set_header Host $proxy_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -24,7 +30,7 @@ ${new URL(proxy.proxy_pass).protocol === "https:" ? "    proxy_ssl_server_name o
     proxy_buffering off;
     proxy_read_timeout 600;
 }
-`,
-);
+`;
+});
 
 writeFileSync(outputPath, locations.join("\n"));

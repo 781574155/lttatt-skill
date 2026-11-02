@@ -175,9 +175,6 @@
     post {
         failure {
             script {
-                def appDirName = params.APP_DIR?.tokenize('/')?.last()
-                def logUrl = "${env.CONTAINER_LOG_BASE_URL}${appDirName}-${env.PACKAGE_NAME}-1"
-                echo "Docker container logs：${logUrl}"
                 if (params.MAIL_TO != null && params.MAIL_TO != 'None') {
                     mail to: params.MAIL_TO,
                          subject: "❌ ${env.JOB_NAME} #${env.BUILD_NUMBER}",
