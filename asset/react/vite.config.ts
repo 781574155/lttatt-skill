@@ -33,15 +33,11 @@ const proxy = Object.fromEntries(
     .map(({ location, proxy_pass }) => {
       const target = new URL(proxy_pass);
       const hasTargetPath = /^https?:\/\/[^/]+\//i.test(proxy_pass);
-      const cookiePath = target.pathname.replace(/\/$/, "");
       const options: ProxyOptions = {
         target: target.origin,
         changeOrigin: true,
         secure: false,
         rewrite: hasTargetPath ? (path) => `${target.pathname}${path.slice(location.length)}` : undefined,
-        cookiePathRewrite: cookiePath
-          ? { [cookiePath]: location.replace(/\/$/, "") || "/", [`${cookiePath}/`]: location }
-          : undefined,
       };
       return [location, options];
     }),

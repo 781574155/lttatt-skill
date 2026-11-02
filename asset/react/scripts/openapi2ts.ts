@@ -99,6 +99,7 @@ async function generate() {
         throw new AggregateError(
           [error, restoreError],
           `更新和恢复 API 客户端失败，原文件备份保留在：${backupDirectory}`,
+          { cause: restoreError },
         );
       }
       throw error;

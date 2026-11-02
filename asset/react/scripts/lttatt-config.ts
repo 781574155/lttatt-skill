@@ -5,6 +5,8 @@ export interface Upstream {
   name: string;
   type: "java";
   url: string;
+  location?: string;
+  openapiPath: string;
 }
 
 export interface ProxyConfig {
@@ -26,12 +28,21 @@ function parseUpstream(value: unknown): Upstream {
     throw new Error("lttatt.json 的每个 upstream 必须是对象");
   }
 
-  const { name, type, url } = value;
+  const { name, type, url, location, openapiPath = "/backend-api/v3/api-docs" } = value;
   if (typeof name !== "string" || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(name)) {
     throw new Error("upstream.name 必须以小写字母开头，只能包含小写字母、数字和单个连字符");
   }
   if (type !== "java") {
     throw new Error(`上游 ${name} 的 type 目前仅支持 java`);
+  }
+  if (
+    location !== undefined &&
+    (typeof location !== "string" || !/^\/[^\s?#{};"'$\\]*$/.test(location) || location.replace(/\/+$/, "") === "")
+  ) {
+    throw new Error(`上游 ${name} 的 location 必须是以 / 开头的非根路径，不能包含空白、查询参数或配置特殊字符`);
+  }
+  if (typeof openapiPath !== "string" || !/^\/(?!\/)[^\s?#\\]*$/.test(openapiPath)) {
+    throw new Error(`上游 ${name} 的 openapiPath 必须是以单个 / 开头的路径，不能包含空白、查询参数、片段或反斜杠`);
   }
   if (typeof url !== "string" || !URL.canParse(url)) {
     throw new Error(`上游 ${name} 的 url 必须是有效的 HTTP 或 HTTPS 地址`);
@@ -49,7 +60,7 @@ function parseUpstream(value: unknown): Upstream {
     throw new Error(`上游 ${name} 的 url 只能包含 HTTP 或 HTTPS 协议、主机和端口`);
   }
 
-  return { name, type, url: parsedUrl.origin };
+  return { name, type, url: parsedUrl.origin, location, openapiPath };
 }
 
 function parseProxy(value: unknown): ProxyConfig {
@@ -97,8 +108,8 @@ export function loadLttattConfig(): LttattConfig {
     throw new Error("lttatt.json 的 proxies 必须是列表");
   }
   const proxies = (config.proxies ?? []).map(parseProxy);
-  const locations = new Set(upstreams.map((upstream) => `${getUpstreamPrefix(upstream)}/`));
-  for (const proxy of proxies) {
+  const locations = new Set<string>();
+  for (const proxy of [...upstreams.map((upstream) => ({ location: `${getUpstreamPrefix(upstream)}/` })), ...proxies]) {
     if (locations.has(proxy.location)) {
       throw new Error(`代理路径重复：${proxy.location}`);
     }
@@ -113,7 +124,7 @@ export function loadUpstreams(): Upstream[] {
 }
 
 export function getUpstreamPrefix(upstream: Upstream): string {
-  return `/${upstream.name}`;
+  return (upstream.location ?? `/${upstream.name}`).replace(/\/+$/, "");
 }
 
 export function getUpstreamNamespace(upstream: Upstream): string {

@@ -33,7 +33,7 @@ function customTypeName(data: OpenApiOperation) {
 export default loadUpstreams().map(
   (upstream) =>
     ({
-      schemaPath: `${upstream.url}/backend-api/v3/api-docs`,
+      schemaPath: `${upstream.url}${upstream.openapiPath}`,
       serversPath: "./src/http/api",
       projectName: upstream.name,
       namespace: getUpstreamNamespace(upstream),

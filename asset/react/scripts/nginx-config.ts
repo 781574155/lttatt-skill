@@ -15,17 +15,13 @@ const locations = [
   ...proxies,
 ].map((proxy) => {
   const target = new URL(proxy.proxy_pass);
-  const cookiePath = target.pathname.replace(/\/$/, "");
-  const cookieRewrite = cookiePath
-    ? `    proxy_cookie_path ${cookiePath} ${proxy.location.replace(/\/$/, "") || "/"};\n`
-    : "";
   const sslServerName = target.protocol === "https:" ? "    proxy_ssl_server_name on;\n" : "";
   return `location ^~ ${proxy.location} {
     proxy_pass ${proxy.proxy_pass};
-${cookieRewrite}${sslServerName}    proxy_set_header Host $proxy_host;
+${sslServerName}    proxy_set_header Host $proxy_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     client_max_body_size 2048M;
     proxy_buffering off;
     proxy_read_timeout 600;
