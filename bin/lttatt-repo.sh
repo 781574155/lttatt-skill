@@ -18,6 +18,8 @@ ASSET_DIR="$REPO_DIR/asset"
 TARGET_DIR="$(pwd)"
 PROJECT_ROOT=""
 PROJECT_NAME=""
+LTTATT_IGNORE_FILE="$TARGET_DIR/.lttattignore"
+LTTATT_IGNORE_PATTERNS=()
 
 usage() {
   echo "用法：${0##*/}"
@@ -40,9 +42,51 @@ check_git_work_tree() {
   [[ -n "$PROJECT_NAME" ]] || die "无法获取当前仓库目录名。"
 }
 
+load_lttatt_ignore() {
+  local pattern
+
+  if [[ ! -f "$LTTATT_IGNORE_FILE" ]]; then
+    echo "【忽略规则】未找到 .lttattignore，将处理所有模板文件。"
+    return 0
+  fi
+
+  while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+    pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+    pattern="${pattern%"${pattern##*[![:space:]]}"}"
+    [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+    LTTATT_IGNORE_PATTERNS+=("$pattern")
+  done < "$LTTATT_IGNORE_FILE" || die "无法读取忽略规则文件：$LTTATT_IGNORE_FILE"
+
+  echo "【忽略规则】已读取 $LTTATT_IGNORE_FILE"
+  if [[ "${#LTTATT_IGNORE_PATTERNS[@]}" -eq 0 ]]; then
+    echo "【忽略规则】文件中没有有效规则。"
+  else
+    printf '【忽略规则】%s\n' "${LTTATT_IGNORE_PATTERNS[@]/#/  }"
+  fi
+}
+
+is_lttatt_ignored() {
+  local relative_path="$1"
+  local pattern normalized_pattern
+
+  for pattern in "${LTTATT_IGNORE_PATTERNS[@]}"; do
+    normalized_pattern="${pattern#/}"
+    if [[ "$normalized_pattern" == */ ]]; then
+      normalized_pattern="${normalized_pattern%/}"
+      [[ "$relative_path" == "$normalized_pattern" || "$relative_path" == "$normalized_pattern"/* ]] && return 0
+    elif [[ "$normalized_pattern" == */* ]]; then
+      [[ "$relative_path" == $normalized_pattern ]] && return 0
+    else
+      [[ "$relative_path" == $normalized_pattern || "$relative_path" == */$normalized_pattern ]] && return 0
+    fi
+  done
+
+  return 1
+}
+
 set_copied_shell_files_executable() {
   local source_dir="$1"
-  local had_globstar had_nullglob source_file relative_path target_file
+  local had_globstar had_nullglob had_dotglob source_file relative_path target_file
 
   if shopt -q globstar; then
     had_globstar=1
@@ -56,11 +100,22 @@ set_copied_shell_files_executable() {
     had_nullglob=0
   fi
 
-  shopt -s globstar nullglob
+  if shopt -q dotglob; then
+    had_dotglob=1
+  else
+    had_dotglob=0
+  fi
+
+  shopt -s globstar nullglob dotglob
 
   for source_file in "$source_dir"/**/*.sh; do
     relative_path="${source_file#"$source_dir"/}"
     target_file="$TARGET_DIR/$relative_path"
+
+    if is_lttatt_ignored "$relative_path"; then
+      echo "【跳过处理】$relative_path（命中 .lttattignore）"
+      continue
+    fi
 
     if [[ -f "$target_file" ]]; then
       echo "设置脚本可执行权限：$relative_path"
@@ -75,11 +130,15 @@ set_copied_shell_files_executable() {
   if [[ "$had_nullglob" -eq 0 ]]; then
     shopt -u nullglob
   fi
+
+  if [[ "$had_dotglob" -eq 0 ]]; then
+    shopt -u dotglob
+  fi
 }
 
 replace_project_placeholder_in_copied_files() {
   local source_dir="$1"
-  local had_globstar had_nullglob source_file relative_path target_file tmp_file
+  local had_globstar had_nullglob had_dotglob source_file relative_path target_file tmp_file
 
   if shopt -q globstar; then
     had_globstar=1
@@ -93,13 +152,24 @@ replace_project_placeholder_in_copied_files() {
     had_nullglob=0
   fi
 
-  shopt -s globstar nullglob
+  if shopt -q dotglob; then
+    had_dotglob=1
+  else
+    had_dotglob=0
+  fi
+
+  shopt -s globstar nullglob dotglob
 
   for source_file in "$source_dir"/**/*; do
     [[ -f "$source_file" ]] || continue
 
     relative_path="${source_file#"$source_dir"/}"
     target_file="$TARGET_DIR/$relative_path"
+
+    if is_lttatt_ignored "$relative_path"; then
+      echo "【跳过替换】$relative_path（命中 .lttattignore）"
+      continue
+    fi
 
     if [[ -f "$target_file" ]] && grep -Iq "PROJECT_PLACEHOLDER" "$target_file"; then
       echo "替换项目占位符：$relative_path -> $PROJECT_NAME"
@@ -127,16 +197,69 @@ replace_project_placeholder_in_copied_files() {
   if [[ "$had_nullglob" -eq 0 ]]; then
     shopt -u nullglob
   fi
+
+  if [[ "$had_dotglob" -eq 0 ]]; then
+    shopt -u dotglob
+  fi
 }
 
 copy_template_dir() {
   local source_dir="$1"
   local label="$2"
+  local had_globstar had_nullglob had_dotglob source_file relative_path target_file
 
   [[ -d "$source_dir" ]] || die "模板目录不存在：$source_dir"
 
   echo "复制 ${label} 文件：$source_dir -> $TARGET_DIR"
-  cp -R "$source_dir"/. "$TARGET_DIR"/
+  if shopt -q globstar; then
+    had_globstar=1
+  else
+    had_globstar=0
+  fi
+
+  if shopt -q nullglob; then
+    had_nullglob=1
+  else
+    had_nullglob=0
+  fi
+
+  if shopt -q dotglob; then
+    had_dotglob=1
+  else
+    had_dotglob=0
+  fi
+
+  shopt -s globstar nullglob dotglob
+
+  for source_file in "$source_dir"/**/*; do
+    relative_path="${source_file#"$source_dir"/}"
+    target_file="$TARGET_DIR/$relative_path"
+
+    if is_lttatt_ignored "$relative_path"; then
+      echo "【跳过复制】$relative_path（命中 .lttattignore）"
+      continue
+    fi
+
+    if [[ -d "$source_file" ]]; then
+      mkdir -p "$target_file"
+    else
+      mkdir -p "$(dirname "$target_file")"
+      cp "$source_file" "$target_file"
+    fi
+  done
+
+  if [[ "$had_globstar" -eq 0 ]]; then
+    shopt -u globstar
+  fi
+
+  if [[ "$had_nullglob" -eq 0 ]]; then
+    shopt -u nullglob
+  fi
+
+  if [[ "$had_dotglob" -eq 0 ]]; then
+    shopt -u dotglob
+  fi
+
   replace_project_placeholder_in_copied_files "$source_dir"
   set_copied_shell_files_executable "$source_dir"
 }
@@ -148,6 +271,11 @@ replace_jenkinsfile_stages_tail() {
 
   [[ -f "$target_file" ]] || return 0
   [[ -f "$template_file" ]] || die "Jenkinsfile 模板不存在：$template_file"
+
+  if is_lttatt_ignored "Jenkinsfile"; then
+    echo "【跳过替换】Jenkinsfile（命中 .lttattignore）"
+    return 0
+  fi
 
   echo "替换 Jenkinsfile 的 stages 及其以后内容：$target_file"
   tmp_file="$(mktemp)"
@@ -200,6 +328,7 @@ print_intro
 [[ -d "$ASSET_DIR/common" ]] || die "通用模板目录不存在：$ASSET_DIR/common"
 
 check_git_work_tree
+load_lttatt_ignore
 detect_project_type
 
 echo "当前项目目录：$TARGET_DIR"

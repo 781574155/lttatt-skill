@@ -1,6 +1,6 @@
 import lodash from "lodash";
 import type { GenerateServiceProps } from "@easyfollow/openapi";
-import { getUpstreamNamespace, getUpstreamPrefix, loadUpstreams } from "./scripts/lttatt-config.ts";
+import { getUpstreamNamespace, loadUpstreams } from "./scripts/lttatt-config.ts";
 
 const { camelCase } = lodash;
 const RESERVED_FUNCTION_NAMES = new Set(
@@ -47,11 +47,11 @@ export default loadUpstreams().map(
             throw new Error(`上游 ${upstream.name} 未返回有效的 OpenAPI 3 文档`);
           }
 
-          // 在生成前加入服务前缀，让请求路径和普通、无限查询的 Query Key 一起隔离。
+          // Query Key 固定使用上游名称前缀，生成阶段再单独替换请求地址。
           const paths = Object.fromEntries(
             Object.entries(data.paths).map(([path, operation]) => {
               const backendPath = path.replace(/^\/backend-api(?=\/|$)/, "");
-              return [`${getUpstreamPrefix(upstream)}${backendPath || "/"}`, operation];
+              return [`/${upstream.name}${backendPath || "/"}`, operation];
             }),
           );
           return { ...data, paths };
