@@ -5,6 +5,7 @@ print_intro() {
   echo "功能介绍："
   echo "  将当前 master 分支上的未提交改动安全转移到新分支，提交后推送，并创建 GitHub PR。"
   echo "  如果需要创建草稿 PR，请使用 --draft 参数。"
+  echo "  默认使用自动生成的分支名和提交信息 p；如需编辑，请使用 --edit 参数。"
   echo
 }
 
@@ -12,11 +13,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lttatt-common.sh"
 
 CREATE_DRAFT_PR=0
+EDIT=0
 
 usage() {
-  echo "用法：${0##*/} [--draft]"
+  echo "用法：${0##*/} [--draft] [--edit]"
   echo
   echo "  --draft    创建 GitHub 草稿 PR"
+  echo "  --edit     交互式编辑分支名和提交信息"
 }
 
 parse_args() {
@@ -24,6 +27,10 @@ parse_args() {
     case "$1" in
       --draft)
         CREATE_DRAFT_PR=1
+        shift
+        ;;
+      --edit)
+        EDIT=1
         shift
         ;;
       -h|--help)
@@ -65,8 +72,11 @@ git status --short
 
 echo
 DEFAULT_BRANCH_NAME="choco/p-$(date +%Y%m%d%H%M%S)"
-read -rp "请输入分支名，以feature/、fix/、chore/开头[默认值：$DEFAULT_BRANCH_NAME]：" BRANCH_NAME
-BRANCH_NAME="${BRANCH_NAME:-$DEFAULT_BRANCH_NAME}"
+BRANCH_NAME="$DEFAULT_BRANCH_NAME"
+if [[ "$EDIT" -eq 1 ]]; then
+  read -rp "请输入分支名，以feature/、fix/、chore/开头[默认值：$DEFAULT_BRANCH_NAME]：" BRANCH_NAME
+  BRANCH_NAME="${BRANCH_NAME:-$DEFAULT_BRANCH_NAME}"
+fi
 
 if [[ ! "$BRANCH_NAME" =~ ^[a-z]+/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   echo "分支名格式不正确，请使用 feature/xxx-yyy、fix/xxx-yyy 或 chore/xxx-yyy 这样的格式。"
@@ -79,8 +89,11 @@ if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
 fi
 
 echo
-read -rp "请输入提交信息[默认值：p]：" COMMIT_MESSAGE
-COMMIT_MESSAGE="${COMMIT_MESSAGE:-p}"
+COMMIT_MESSAGE="p"
+if [[ "$EDIT" -eq 1 ]]; then
+  read -rp "请输入提交信息[默认值：p]：" COMMIT_MESSAGE
+  COMMIT_MESSAGE="${COMMIT_MESSAGE:-p}"
+fi
 
 if [[ -z "$COMMIT_MESSAGE" ]]; then
   echo "提交信息不能为空。"
