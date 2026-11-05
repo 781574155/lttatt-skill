@@ -5,7 +5,7 @@ usage() {
   echo "用法：${0##*/}"
   echo
   echo "  当前分支的 PR 已合并或关闭时，切换到 master 并执行 git pull origin master。"
-  echo "  本地有未提交改动时保持当前分支；所有保持当前分支的情况都会提示原因。"
+  echo "  本地有未提交改动时，询问是否暂存改动并切换到 master，拉取后恢复改动。"
 }
 
 if [[ "$#" -gt 0 ]]; then
@@ -32,38 +32,28 @@ if [[ -z "$CURRENT_BRANCH" ]]; then
   exit 1
 fi
 
-echo "检查本地未提交改动..."
-if ! WORKTREE_STATUS=$(git status --porcelain --untracked-files=all); then
-  echo "无法检查本地改动，保持当前分支。" >&2
-  exit 1
-fi
-
-if [[ -n "$WORKTREE_STATUS" ]]; then
-  echo "本地存在未提交改动（包括已暂存、未暂存或未跟踪文件），保持当前分支。"
-  exit 0
-fi
-
-get_pr_state() {
+get_pr_info() {
   gh pr list \
     --head "$CURRENT_BRANCH" \
     --state "$1" \
     --limit 1 \
-    --json state \
-    --jq '.[0].state // empty'
+    --json state,url \
+    --jq '.[0] | select(. != null) | [.state, .url] | @tsv'
 }
 
 echo "检查分支 '$CURRENT_BRANCH' 的 PR 状态..."
 # 同一分支可能关联多个 PR，优先保留仍有开放 PR 的分支。
-if ! PR_STATE=$(get_pr_state open); then
+if ! PR_INFO=$(get_pr_info open); then
   echo "查询当前分支的开放 PR 失败，保持当前分支。" >&2
   exit 1
 fi
-if [[ -z "$PR_STATE" ]]; then
-  if ! PR_STATE=$(get_pr_state all); then
+if [[ -z "$PR_INFO" ]]; then
+  if ! PR_INFO=$(get_pr_info all); then
     echo "查询当前分支的 PR 历史失败，保持当前分支。" >&2
     exit 1
   fi
 fi
+IFS=$'\t' read -r PR_STATE PR_URL <<< "$PR_INFO"
 
 case "$PR_STATE" in
   "")
@@ -72,6 +62,7 @@ case "$PR_STATE" in
     ;;
   OPEN)
     echo "当前分支的 PR 仍处于开放状态，保持当前分支。"
+    echo "$PR_URL"
     exit 0
     ;;
   MERGED|CLOSED)
@@ -83,13 +74,68 @@ case "$PR_STATE" in
     ;;
 esac
 
+echo "检查本地未提交改动..."
+if ! WORKTREE_STATUS=$(git status --porcelain --untracked-files=all); then
+  echo "无法检查本地改动，保持当前分支。" >&2
+  exit 1
+fi
+
+HAS_STASH=0
+if [[ -n "$WORKTREE_STATUS" ]]; then
+  echo "本地存在未提交改动（包括已暂存、未暂存或未跟踪文件）。"
+  if ! read -rp "是否暂存改动并切换到 master，拉取后恢复改动？[y/N] " CONFIRM; then
+    echo "未确认切换，保持当前分支。"
+    exit 0
+  fi
+  case "$CONFIRM" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "已取消切换，保持当前分支。"
+      exit 0
+      ;;
+  esac
+
+  echo "暂存本地改动..."
+  PREVIOUS_STASH=$(git rev-parse --verify refs/stash 2>/dev/null || true)
+  if ! git stash push --include-untracked -m "lttatt-co: $CURRENT_BRANCH -> master"; then
+    echo "暂存改动失败，保持当前分支，请检查 git status 和 git stash list。" >&2
+    exit 1
+  fi
+  CURRENT_STASH=$(git rev-parse --verify refs/stash 2>/dev/null || true)
+  if [[ -z "$CURRENT_STASH" || "$CURRENT_STASH" == "$PREVIOUS_STASH" ]]; then
+    echo "未创建新的 stash，保持当前分支，请检查本地改动。" >&2
+    exit 1
+  fi
+  HAS_STASH=1
+fi
+
+print_stash_recovery() {
+  if [[ "$HAS_STASH" -eq 1 ]]; then
+    echo "本地改动已保留在 stash 中，可用 git stash list 查看，确认分支后用 git stash pop 恢复。" >&2
+  fi
+}
+
 echo "切换到 master 分支..."
-if ! git switch master; then
+if ! git checkout master; then
   echo "切换到 master 失败，保持当前分支。" >&2
+  print_stash_recovery
   exit 1
 fi
 
 echo "拉取最新的 origin/master..."
-git pull origin master
+if ! git pull origin master; then
+  echo "拉取 origin/master 失败，请检查当前分支状态。" >&2
+  print_stash_recovery
+  exit 1
+fi
+
+if [[ "$HAS_STASH" -eq 1 ]]; then
+  echo "恢复本地改动..."
+  if ! git stash pop; then
+    echo "恢复改动时发生冲突或错误，请用 git status 检查并处理。" >&2
+    print_stash_recovery
+    exit 1
+  fi
+fi
 
 echo "完成。"
