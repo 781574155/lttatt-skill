@@ -4,7 +4,8 @@ set -euo pipefail
 usage() {
   echo "用法：${0##*/}"
   echo
-  echo "  当前分支的 PR 已合并或关闭时，切换到 master 并执行 git pull origin master。"
+  echo "  当前分支为 master 时，直接执行 git pull origin master --tags --no-edit。"
+  echo "  当前分支的 PR 已合并或关闭时，切换到 master 并执行 git pull origin master --tags --no-edit。"
   echo "  本地有未提交改动时，询问是否暂存改动并切换到 master，拉取后恢复改动。"
 }
 
@@ -30,6 +31,16 @@ CURRENT_BRANCH=$(git branch --show-current)
 if [[ -z "$CURRENT_BRANCH" ]]; then
   echo "当前处于 detached HEAD 状态，保持当前检出状态，请先切换到一个分支。" >&2
   exit 1
+fi
+
+if [[ "$CURRENT_BRANCH" == "master" ]]; then
+  echo "当前分支为 master，拉取最新的 origin/master..."
+  if ! git pull origin master --tags --no-edit; then
+    echo "拉取 origin/master 失败，请检查当前分支状态。" >&2
+    exit 1
+  fi
+  echo "完成。"
+  exit 0
 fi
 
 get_pr_info() {
@@ -123,7 +134,7 @@ if ! git checkout master; then
 fi
 
 echo "拉取最新的 origin/master..."
-if ! git pull origin master; then
+if ! git pull origin master --tags --no-edit; then
   echo "拉取 origin/master 失败，请检查当前分支状态。" >&2
   print_stash_recovery
   exit 1
