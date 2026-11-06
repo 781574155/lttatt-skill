@@ -1,4 +1,5 @@
 {
+  "workbench.browser.openLocalhostLinks": false,
   "editor.formatOnSave": false,
   "files.exclude": {
     "**/*.pyc": true,
