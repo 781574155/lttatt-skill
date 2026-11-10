@@ -16,107 +16,62 @@
 ## 构建与验证
 
 - 代码修改完成就算开发完成了，不要运行命令进行验证。
-- 不要执行 `mvn install`，根 `pom.xml` 的 `install` 阶段会触发 Docker build/tag/push。
+- 不要执行 `mvn install`。
 - hurl 用例通过 `./ci-test.sh <base_url> "--test" <file-or-dir>` 或 `--very-verbose` 执行；除非用户明确要求，不主动新增或运行 e2e 用例。
 
-## 模块与依赖
+## 包与依赖
 
-- 这是 Maven 多模块项目，实际依赖方向为：
-  `common` -> `user` -> `file` / `chat` -> `app`。
-- `common` 放通用能力：全局配置、通用响应、异常、通用 DTO、通用 eao/service，不依赖业务模块。
-- `user` 放用户、认证授权、支付、用户校验等能力，可依赖 `common`。
-- `file` 放文件上传、MinIO、文件映射等能力，当前依赖 `user`。
-- `chat` 放聊天会话、聊天记录、聊天用量等能力，当前依赖 `user`。
-- `app` 是业务聚合和启动模块，放主应用入口、剧集业务、模型、MQ 配置以及总 Liquibase master，可依赖 `user`、`file`、`chat`。
-- 新增代码放到所属模块，禁止为了调用方便引入反向依赖；跨模块共享类型放到下层模块或 `export/type/**`。
+- `com.lttatt.platform.common` 放全局配置、通用响应、异常、通用 DTO、通用 eao/service 等基础设施，不依赖业务代码。
 
 ## 分层约定
 
 - 保持 `eao` -> `service` -> `app` 的方向：上层可调用下层，下层不能调用上层。
 - `eao`：实体、Repository、Specification、数据库/Redis/Mongo 类型、查询 DTO，不写接口层逻辑。
-- `service`：业务流程、事务、事件监听、MQ 收发、外部服务调用；复杂或可复用流程优先沉到 Service。
+- `service`：业务流程、事务、事件监听、外部服务调用；复杂或可复用流程优先沉到 Service。
 - `app`：REST 接口层，负责路由、权限、参数合法性、资源归属校验和请求/响应 DTO 转换。
 - 合法性校验主要放在 `app` 层；领域流程中的状态校验和跨实体一致性校验放在 `service` 层。
 - 简单 CRUD 可沿用现有 Resource 直接调用 Repository 的风格；一旦涉及多实体写入、异步、副作用或复用，就提到 Service。
-- `service` 层使用的参数类型后缀命名为 `Data`；`Req` 中可以提供 `toData` 方法，`Data` 中可以提供 `toEntity` 方法，用于完成对应层级之间的转换。
+- `service` 层方法优先复用适用的现有 Entity。参数不超过 3 个时直接传参，超过 3 个且需要封装时才定义以 `Data` 结尾的参数类型。
 
 ## 包与命名
 
 - REST 控制器命名保持 `*Resource.java`。
 - 用户接口放 `app/`，管理员接口放 `app/admin/`，公开接口放 `app/pub/`。
-- 请求/响应 DTO 放对应模块的 `app/**/rep/` 目录。请求为 `*Req`，响应为 `*Resp`，尽量使用 `record`。
+- REST 请求/响应 DTO 放对应的 `app/**/rep/` 目录。请求为 `*Req`，响应为 `*Resp`，尽量使用 `record`。
 - JPA 实体和 Repository 放 `eao/`；枚举放 `eao/type/`；Repository 查询投影 DTO 放 `eao/type/dto/`；Specification 放 `eao/spec/`。
 - 配置属性类放 `service/prop/` 或已有的配置包，命名保持 `*Properties.java`。
-- Spring event 类型放 `service/type/event/`；MQ 消息类型放 `export/type/mq/`。
+- Spring event 类型放 `service/type/event/`。
 
 ## REST 接口规范
 
-- 需要登录的用户接口使用 `@Login`，路径一般以 `user/...` 开头。
-- 管理接口使用 `@Admin`，路径一般以 `admin/...` 开头。
-- 公开接口使用 `pub/...` 或沿用已有根路径约定，例如 `login2`。
+- 需要登录的用户接口路径一般以 `user/...` 开头。
+- 管理接口路径一般以 `admin/...` 开头。
+- 公开接口使用 `pub/...`。
 - 当前用户通过 `@AuthenticationPrincipal MyUserDetails userDetails` 获取。
 - Controller 使用 `@Tag`，接口方法使用 `@Operation(summary = "...")`，说明保持简洁。
 - 请求体使用 `@Valid @RequestBody XxxReq`，路径和查询参数用 Spring MVC 标准注解。
 - 资源归属校验必须在接口层完成；嵌套路由要校验子资源确实属于父资源，不要泄露其他用户资源是否存在。
-- 不要手动把正常返回值包装成 `GeneralOperationResult`；`GeneralOperationResultAdvice` 会统一包装 JSON 响应。
-- `void` 接口会被统一包装为“操作成功”；查询不到资源时使用 `GeneralOperationResultException.resourceNotExist()` 或 `AssertUtil.assertExist`。
+- 由 `GeneralOperationResultAdvice` 包装的响应直接返回业务结果。包装规则适用于符合条件的 HTTP 200 JSON 响应，跳过 `/internal/**`、文件响应和 OpenAPI 文档。
+- 对适用响应包装的 `void` 接口返回“操作成功”；查询不到资源时使用 `GeneralOperationResultException.resourceNotExist()`。
 - 业务错误优先抛 `GeneralOperationResultException`，不要随意引入新的异常响应格式。
 
 ## Resource 标准写法
 
 - Resource 类名按资源和入口命名：用户接口 `XxxResource`，管理接口 `XxxAdminResource`，公开接口 `XxxPubResource`。
 - `@Tag(name = "...")` 的 name 与类名保持一致；`description` 使用简短中文名称，后台接口可加“(后台)”。
-- 类级路径使用复数资源名和 kebab-case，例如 `@RequestMapping("admin/banners")`、`@RequestMapping("user/ai-calls")`。
+- 类级路径使用 kebab-case，集合资源使用复数资源名。
 - 标准 CRUD 方法名保持：列表 `readAll`，单个 `read`，创建 `create`，全量修改 `update`，局部修改 `patch`，删除 `delete`。
 - 列表查询统一返回 `Page<XxxResp>`，参数使用 `Pageable`；需要默认排序时使用 `@PageableDefault`。
 - Resource 中列表查询参数可能为 `null` 时，优先使用 Specification 按非空参数组合查询条件；不要为了不同参数组合调用多个 Repository 查询方法，也不要在 JPQL 中写 `:param is null or ...` 这类参数判空逻辑。
 - 单个资源路径使用 `"{id}"`；子动作路径使用 `"{id}/xxx"`，动词动作优先使用 `@PostMapping`。
 - `patch` 接口先查询 Entity，再在 Java 中判断请求参数是否为 `null`；不为 `null` 时设置到 Entity 并保存，不要通过 JPQL 直接更新。
 - `patch` 接口需要同时区分“未修改”和“将可空字段清空为 `null`”时，在 `PatchReq` 中为该字段增加 `Boolean nullXxx` 标记（例如 `audioUrl` 对应 `nullAudioUrl`）：字段和标记均未传时保持原值，字段非 `null` 时更新字段，`nullXxx` 为 `true` 时将字段设为 `null`；若字段值与清空标记同时传入，以清空为准。
-- 新增 Resource 优先按以下形态组织：
-
-  ```java
-  @Tag(name = "BannerAdminResource", description = "轮播图管理(后台)")
-  @Admin
-  @RestController
-  @RequestMapping("admin/banners")
-  public class BannerAdminResource {
-    @GetMapping
-    @Operation(summary = "查看轮播图(列表)")
-    public Page<BannerResp> readAll(Pageable pageable) {
-      return bannerRepository.findAll(pageable).map(BannerResp::newInstance);
-    }
-
-    @GetMapping("{id}")
-    @Operation(summary = "查看轮播图(单个)")
-    public BannerResp read(@PathVariable Integer id) {
-      return bannerRepository
-          .findById(id)
-          .map(BannerResp::newInstance)
-          .orElseThrow(GeneralOperationResultException::resourceNotExist);
-    }
-
-    @PostMapping
-    @Operation(summary = "创建轮播图")
-    public BannerResp create(@Valid @RequestBody BannerCreateReq req) {
-      return BannerResp.newInstance(bannerRepository.save(entity));
-    }
-
-    @PatchMapping("{id}")
-    @Operation(summary = "修改轮播图")
-    public void patch(@PathVariable Integer id, @Valid @RequestBody BannerPatchReq req) {}
-
-    @DeleteMapping("{id}")
-    @Operation(summary = "删除轮播图")
-    public void delete(@PathVariable Integer id) {}
-  }
-  ```
 
 ## DTO 与 JSON
 
 - 后缀为 `Req`、`Resp` 的类使用 `record`。
 - `Resp` 中从 Entity/DTO 构造响应时，沿用 `static newInstance(...)` 工厂方法。
-- Repository 查询投影 DTO 中如果字段要返回 `List<String>`，record 字段保持 `List<String>`；JPQL 聚合值用额外构造器接收 `Object`，在构造器内转成字符串后用 `StringUtils.tokenizeToStringArray(..., ",")` 和 `List.of(...)` 转成列表，写法参考 `UserProfileDto`。
+- Repository 查询投影 DTO 中如果字段要返回 `List<String>`，record 字段保持 `List<String>`；JPQL 聚合值用额外构造器接收 `Object`，在构造器内转成字符串后用 `StringUtils.tokenizeToStringArray(..., ",")` 和 `List.of(...)` 转成列表。
 - Java 字段使用 camelCase；外部 JSON 由 `spring.jackson.property-naming-strategy=SNAKE_CASE` 统一转为下划线。
 - hurl 断言中的 JSON 字段使用下划线，例如 `screen_ratio`、`create_time`。
 - 枚举对外默认使用枚举名；实体字段使用 `@Enumerated(EnumType.STRING)`。
@@ -159,30 +114,23 @@
 
 - SQL 文件使用 `--liquibase formatted sql`。
 - 编写 SQL 时，不要使用 `COMMENT` 添加注释。一般不要使用 `DEFAULT` 设置列默认值；需要默认值时，一般直接在 Java 的 Entity 字段上设置。
-- 表结构变更放在所属模块的 `src/main/resources/db/changelog/` 下，文件名保持 `*_entity.sql` 风格。
+- 表结构变更放在 `src/main/resources/db/changelog/` 下，文件名使用 `*_entity.sql`。
 - 新增 changelog 后，同步更新 `db.changelog-master.yaml` 的 `include`。
-- changeset 继续使用仓库已有的作者前缀和递增编号风格；可回滚的变更写 `--rollback`。
+- 可回滚的 changeset 写 `--rollback`。
 - 表名、列名、索引名使用 snake_case；唯一索引优先用 SQL 中的 `UNIQUE KEY` 或 `CONSTRAINT`。
 - `user_id` 字段需要添加引用用户表的外键；删除策略一般使用 `ON DELETE CASCADE`，根据业务情况也可以使用 `ON DELETE SET NULL`，此时字段必须允许为 `NULL`。
 - 涉及外键时按所有权关系考虑 `ON DELETE CASCADE`，延续现有表设计。
 
-## 异步、事件与消息
+## 事件
 
-- 模块内或下游副作用优先使用 Spring event：发布用 `ApplicationEventPublisher`，监听放在 Service 中使用 `@EventListener`。
-- `RefreshUiEvent` 类刷新事件尽量在变动入口发送：由 Resource 接口完成的修改（包括调用 Service 完成的修改），在 Resource 中触发，不要在 Service 中触发；只有在 Service 内部发生的变动，例如定时任务、异步处理、事件监听或自动处理，才在 Service 中触发。
-- 前后台接口的刷新事件必须隔离：所有后台接口的变更均不发送前台的 `RefreshUiEvent`，所有前台接口的变更也不发送后台的 `RefreshUiEvent`；此规则同样适用于接口调用的 Service 或事件监听器间接触发的刷新通知。
-- 刷新事件的接收用户、查询范围等可由 Service 查询并组装后返回，实际发布仍由对应变动入口负责，避免 Resource 和 Service 重复发送；涉及事务时继续复用提交后通知机制。
-- RabbitMQ 队列名集中维护在 `RabbitmqConfig.QUEUE_NAMES`。
-- 发送 MQ 优先走 `MqService`，消息体放 `export/type/mq/`，并使用 `@Valid` 校验。
-- 新增监听器使用 `@RabbitListener(queues = "...")`，队列名必须先加入 `RabbitmqConfig`。
-- 异步状态字段优先复用 `AssetStatus`，并保持 `WaitingProcess`、`Processing`、`ProcessSuccess`、`ProcessFailed`、`ProcessCancelled` 的语义一致。
+- 应用内副作用优先使用 Spring event：发布用 `ApplicationEventPublisher`，监听放在 Service 中使用 `@EventListener`。
 
 ## 配置与安全
 
 - 配置属性类使用 `@ConfigurationProperties(prefix = "...")`、`@Configuration`、Lombok `@Data`，默认值写在字段上。
 - `application.properties` 中配置项使用 kebab-case，并尽量保留可本地覆盖的默认值。
 - 新增敏感配置不要硬编码真实密钥，优先通过外部配置或已有 `spring.config.import` 机制覆盖。
-- 认证授权沿用 `@Login`、`@Admin`、`Roles`、`MyUserDetails`、`Tq-Authorization` 的现有体系。
+- 认证授权沿用 OAuth2 Resource Server JWT、`Authorization: Bearer …`、`MyUserDetails`、`@PreAuthorize` 和 `@TeamRoleAllowed`。
 
 ## Java 风格
 
@@ -202,6 +150,4 @@
 
 - 所有 JSON 字段使用下划线命名，不要使用驼峰命名。
 - `e2e/vars.env` 中维护 `context_path=backend-api`，新增 hurl 用例时保持与 `application.properties` 的 `server.servlet.context-path=/backend-api` 一致。
-- 新增用户的用户名统一为 `u{{timestamp}}`。
-- 登录后用 `[Captures]` 保存 token，后续请求使用 `Tq-Authorization: {{..._token}}`。
-- 响应断言围绕统一包装结构：`$.success`、`$.data`、`$.message`。
+- 使用 `GeneralOperationResult` 的接口按 `$.success`、`$.data`、`$.message` 断言；其他接口按实际响应结构断言。
