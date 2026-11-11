@@ -41,6 +41,7 @@
 - JPA 实体和 Repository 放 `eao/`；枚举放 `eao/type/`；Repository 查询投影 DTO 放 `eao/type/dto/`；Specification 放 `eao/spec/`。
 - 配置属性类放 `service/prop/` 或已有的配置包，命名保持 `*Properties.java`。
 - Spring event 类型放 `service/type/event/`。
+- 表示“是否启用”的布尔字段和参数统一命名为 `enabled`，适用于实体、DTO、接口参数、JSON 属性、配置项和数据库列。
 
 ## REST 接口规范
 
@@ -104,7 +105,7 @@
 - 对应 Repository 继承 `SortOrderRepository<Entity, Integer>`；如果还需要自定义查询，直接在该 Repository 中继续声明。
 - Liquibase 中新增或调整 `sort_order BIGINT NOT NULL DEFAULT 1000`，并为 `sort_order` 增加索引；不要通过 Entity 映射注解表达字段名、默认值或索引。
 - 创建新数据时注入 `SortOrderService`，全表排序用 `sortOrderService.nextSortOrder(repository)` 设置 `sortOrder`，分组排序传入对应 `SortOrderScope`；不要手写固定值或自行查询最大值。
-- 列表接口按 `sortOrder` 降序返回；公开查询可用 `OrderBySortOrderDesc` 风格的方法名。
+- 带 `sortOrder` 的实体，其分页列表使用 `@PageableDefault(sort = "sortOrder", direction = Sort.Direction.DESC)`，不要指定多个默认排序字段。非分页公开查询可用 `OrderBySortOrderDesc` 风格的方法名。
 - 拖动接口使用 `POST {id}/move`，请求体使用公共 `MoveReq`，方法加 `@Transactional`，实现只调用 `sortOrderService.move(repository, id, req.prevId(), req.nextId())`；分组排序需要传入对应 `SortOrderScope`。
 - 前端拖动后传目标位置相邻节点：移动到列表顶部时 `prev_id` 为空、`next_id` 为后一条 id；移动到底部时 `prev_id` 为前一条 id、`next_id` 为空；移动到中间时二者都传；二者不能同时为空，也不能等于当前 id。
 - 顺序反转接口使用 `POST reverse`，不需要请求体，方法加 `@Transactional`，实现只调用 `sortOrderService.reverse(repository)`；分组排序需要传入对应 `SortOrderScope`，只反转当前分组，不得影响其他分组。
@@ -114,9 +115,10 @@
 
 - SQL 文件使用 `--liquibase formatted sql`。
 - 编写 SQL 时，不要使用 `COMMENT` 添加注释。一般不要使用 `DEFAULT` 设置列默认值；需要默认值时，一般直接在 Java 的 Entity 字段上设置。
+- 编写 SQL 时，不要显式指定 `CHARACTER SET` 或 `COLLATE`，沿用数据库的默认字符集和排序规则。
 - 表结构变更放在 `src/main/resources/db/changelog/` 下，文件名使用 `*_entity.sql`。
 - 新增 changelog 后，同步更新 `db.changelog-master.yaml` 的 `include`。
-- 可回滚的 changeset 写 `--rollback`。
+- 不要在 Liquibase SQL 中编写 `--rollback` 指令。
 - 表名、列名、索引名使用 snake_case；唯一索引优先用 SQL 中的 `UNIQUE KEY` 或 `CONSTRAINT`。
 - `user_id` 字段需要添加引用用户表的外键；删除策略一般使用 `ON DELETE CASCADE`，根据业务情况也可以使用 `ON DELETE SET NULL`，此时字段必须允许为 `NULL`。
 - 涉及外键时按所有权关系考虑 `ON DELETE CASCADE`，延续现有表设计。
