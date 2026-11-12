@@ -3,8 +3,6 @@ branch = True
 relative_files = True
 source =
   .
-omit =
-  tanqi/mq/types.py
 
 [report]
 skip_empty = True
