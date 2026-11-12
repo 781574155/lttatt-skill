@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.ArrayList;
@@ -27,7 +28,10 @@ public class RefreshUiInterceptor implements HandlerInterceptor {
   @Override
   public void afterCompletion(
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-    if (ex != null || response.getStatus() < 200 || response.getStatus() >= 300) {
+    if (!(handler instanceof HandlerMethod)
+        || ex != null
+        || response.getStatus() < 200
+        || response.getStatus() >= 300) {
       return;
     }
     if (!REFRESH_METHODS.contains(request.getMethod())) {

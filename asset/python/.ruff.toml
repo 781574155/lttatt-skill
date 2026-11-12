@@ -25,7 +25,6 @@ exclude = [
     "dist",
     "node_modules",
     "site-packages",
-    "tanqi/mq/types.py",
     "venv",
 ]
 
