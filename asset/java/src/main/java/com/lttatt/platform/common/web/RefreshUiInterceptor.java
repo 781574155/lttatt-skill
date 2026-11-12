@@ -27,7 +27,10 @@ public class RefreshUiInterceptor implements HandlerInterceptor {
   @Override
   public void afterCompletion(
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-    if (ex != null || response.getStatus() < 200 || response.getStatus() >= 300) {
+    if (!(handler instanceof HandlerMethod)
+        || ex != null
+        || response.getStatus() < 200
+        || response.getStatus() >= 300) {
       return;
     }
     if (!REFRESH_METHODS.contains(request.getMethod())) {
