@@ -49,11 +49,11 @@ public class RefreshUiInterceptor implements HandlerInterceptor {
     var queryKey = new ArrayList<>();
     queryKey.add(environment.getRequiredProperty("spring.application.name"));
     queryKey.addAll(List.of(segments));
-    if ("POST".equals(request.getMethod())) {
-      if (queryKey.size() > 2 && "move".equals(queryKey.getLast())) {
-        queryKey.removeLast();
-        queryKey.removeLast();
-      }
+    if ("POST".equals(request.getMethod())
+        && queryKey.size() > 2
+        && "move".equals(queryKey.getLast())) {
+      queryKey.removeLast();
+      queryKey.removeLast();
     } else if (queryKey.size() > 1) {
       queryKey.removeLast();
     }

@@ -42,6 +42,9 @@ export default loadUpstreams().map(
       hook: {
         customFunctionName,
         customTypeName,
+        customType(schema, namespace, getType) {
+          return schema && Object.keys(schema).length === 0 ? "unknown" : getType(schema, namespace);
+        },
         afterOpenApiDataInited(data) {
           if (!data?.openapi?.startsWith("3.") || !data.info || !data.paths) {
             throw new Error(`上游 ${upstream.name} 未返回有效的 OpenAPI 3 文档`);

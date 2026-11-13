@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.PropertyCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
+import org.springdoc.core.properties.SpringDocConfigProperties;
 import org.springdoc.core.providers.ObjectMapperProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -207,11 +208,12 @@ public class OpenApiConfig {
   }
 
   @Bean
-  public static ModelResolver modelResolver(ObjectMapperProvider objectMapperProvider) {
+  public static ModelResolver modelResolver(
+      ObjectMapperProvider objectMapperProvider, SpringDocConfigProperties springDocConfigProperties) {
     ModelResolver.enumsAsRef = true;
     var objectMapper = objectMapperProvider.jsonMapper().copy();
     objectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-    return new ModelResolver(objectMapper);
+    return new ModelResolver(objectMapper).openapi31(springDocConfigProperties.isOpenapi31());
   }
 
   @Bean
