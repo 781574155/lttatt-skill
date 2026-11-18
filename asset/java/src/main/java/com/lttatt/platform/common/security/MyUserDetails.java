@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import com.lttatt.platform.common.gor.GeneralOperationResultException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.DefaultOAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
@@ -23,6 +24,14 @@ public final class MyUserDetails implements OAuth2AuthenticatedPrincipal, Serial
 
   public String getUserId() {
     return principal.getName();
+  }
+
+  public int getUserLevel() {
+    return switch (getAttributes().get("user_level")) {
+      case Integer level -> level;
+      case Long level -> level.intValue();
+      default -> throw new GeneralOperationResultException("访问令牌缺少有效的用户等级，请重新获取访问令牌");
+    };
   }
 
   @Override
