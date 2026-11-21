@@ -21,7 +21,7 @@
 - 通用图标使用 `lucide-react`；业务 IconFont 使用 `src/components/IconFont.tsx`。
 - 消息提示统一使用 `@/components/ui/toast` 导出的 `toast`，由 `src/App.tsx` 中的 `Toaster` 展示。
 - 路由使用 React Router 7（`react-router-dom`），入口路由集中在 `src/App.tsx`。
-- 后端 API 请求使用 Axios 1，统一封装在 `src/http/request.ts`。实时订阅使用 Centrifuge，由 `src/features/realtime` 统一管理。当前没有独立 SSE 客户端依赖，不要假定已有流式请求封装。
+- 后端 API 请求使用 Axios 1，统一封装在 `src/http/request.ts`。实时订阅使用 Centrifuge，`src/platform/realtime` 提供公共连接和刷新调度，`src/features/realtime` 管理项目的订阅策略。当前没有独立 SSE 客户端依赖，不要假定已有流式请求封装。
 - 服务端状态管理使用 TanStack React Query 5。`src/App.tsx` 统一创建 `QueryClient` 并挂载 `QueryClientProvider`。
 - 客户端状态优先使用 React Hooks、状态提升和 Context；当前未安装 Zustand，不要直接引用或为简单状态引入新的状态管理依赖。
 - 新增表单使用 React Hook Form 7，通过 `@hookform/resolvers` 对接 Zod 4，统一完成校验和类型推导。
@@ -43,7 +43,8 @@
 - `src/theme` 保留 TypeScript 主题配置和主题工具的目录设计，按需创建；当前主题 token 及 Tailwind 映射由 `src/styles/tokens.css` 和 `src/styles/shadcn-theme.css` 维护，不另建重复的颜色来源。
 - `src/styles/app.css` 是唯一全局样式入口，只能由 `src/main.tsx` 引入；`src/styles` 仅维护 Tailwind 入口、全局主题 token 和基础页面行为，不放业务组件样式。
 - `src/utils` 放纯工具、枚举展示映射、上传/CDN 等跨模块逻辑。
-- `src/http/request.ts`、`src/http/session.ts`、`src/http/local_storage.ts` 维护请求、登录态和本地存储基础设施。
+- `src/http/request.ts` 接入 `src/platform/http` 的公共 Axios 请求实现，`src/http/oidc.ts` 传入项目 OAuth 配置。
+- `src/platform` 存放由 `lttatt-skill` 同步的跨项目基础设施，浏览器存储封装位于 `src/platform/storage/localStorage.ts`。
 - `public` 放静态资源；代码中引用公开资源时使用根路径。
 - 不要提交或依赖 `node_modules`、`dist`、`out`、`test-results` 等生成目录。
 
@@ -117,6 +118,7 @@
 - 页面分页展示统一从 1 开始，调用后端 pageable 时按生成接口的参数定义转换，后端从 0 开始时传 `page - 1`。
 - 接口错误交给 `src/http/request.ts` 的响应拦截器处理。需要恢复临时 UI 状态时，使用 `finally` 或 React Query mutation 状态。
 - 当响应数据包含自身的 `success` 字段且其值为真，同时 `message` 有值时，HTTP 响应拦截器默认显示成功提示。业务代码避免重复提示。需要关闭默认成功提示时传 `{ noMessageSuccess: true }`。
+- 需要由页面显示资源不存在时，传 `{ noMessageNotFound: true }` 跳过全局错误提示，错误仍向调用方传播。
 - 需要拿原始响应或自行处理成功/失败时，传 `{ noResponseInterceptor: true }`，并在调用处完整处理状态。
 - 新增文件上传功能时，处理上传进度、重复提交和组件卸载后的清理。
 
@@ -138,7 +140,7 @@
 
 - 路由使用 `BrowserRouter`。`/auth/callback` 是 OIDC 回调入口。`/` 由 `RequireAuth` 保护，未登录时跳转到统一账号服务授权，登录后显示首页。未知路由重定向到 `/`。
 - 新增受保护的页面时，在 `src/App.tsx` 注册路由并接入 `RequireAuth`。需要服务权限的页面使用 `RequirePermission` 检查账号权限和令牌 scope。账号缺少对应权限时重定向到 `/`，缺少令牌 scope 时发起授权。
-- 登录态由 `src/features/auth` 和 `src/http/oidc.ts` 管理，`src/http/session.ts` 提供会话和令牌过期事件。请求拦截器为受保护的 API 添加 `Authorization: Bearer <access_token>`。
+- 项目登录态由 `src/features/auth` 管理，`src/platform/auth` 提供 OIDC 客户端、会话事件及权限判断。请求拦截器为受保护的 API 添加 `Authorization: Bearer <access_token>`。
 
 ## 样式与格式化
 
