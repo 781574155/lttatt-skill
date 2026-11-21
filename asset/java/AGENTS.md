@@ -71,7 +71,8 @@
 ## DTO 与 JSON
 
 - 后缀为 `Req`、`Resp` 的类使用 `record`。
-- `Resp` 中从 Entity/DTO 构造响应时，沿用 `static newInstance(...)` 工厂方法。
+- 从 Entity/DTO 构造单个 `Resp` 时，沿用 `static newInstance(...)` 工厂方法。
+- 列表响应（含分页列表）使用 `Resp.newInstanceForList(...)` 构造每个列表项。
 - Repository 查询投影 DTO 中如果字段要返回 `List<String>`，record 字段保持 `List<String>`；JPQL 聚合值用额外构造器接收 `Object`，在构造器内转成字符串后用 `StringUtils.tokenizeToStringArray(..., ",")` 和 `List.of(...)` 转成列表。
 - Java 字段使用 camelCase；外部 JSON 由 `spring.jackson.property-naming-strategy=SNAKE_CASE` 统一转为下划线。
 - hurl 断言中的 JSON 字段使用下划线，例如 `screen_ratio`、`create_time`。
