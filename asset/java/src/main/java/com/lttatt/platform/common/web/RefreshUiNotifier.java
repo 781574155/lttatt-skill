@@ -21,6 +21,14 @@ public class RefreshUiNotifier {
   private final NotifyInternalResourceClient notifyClient;
   private final Environment environment;
 
+  public static String userChannel(String userId) {
+    return "notify:user:" + userId;
+  }
+
+  public static String teamChannel(String teamId) {
+    return "notify:team:" + teamId;
+  }
+
   public List<List<Object>> queryKeys(String[] templates, Map<?, ?> variables) {
     return Arrays.stream(templates)
         .map(template -> queryKey(Arrays.asList(StringUtils.split(template, '/')), variables))
@@ -29,7 +37,10 @@ public class RefreshUiNotifier {
   }
 
   public void send(String channel, List<List<Object>> queryKeys) {
-    var channels = List.of(channel);
+    send(List.of(channel), queryKeys);
+  }
+
+  public void send(List<String> channels, List<List<Object>> queryKeys) {
     for (var queryKey : queryKeys) {
       notifyClient.refreshUi(new RefreshUiReq(queryKey, channels));
     }

@@ -61,7 +61,9 @@ public class RefreshUiInterceptor implements HandlerInterceptor {
     var segments = StringUtils.split(path, '/');
     var teamPath = segments.length > 2 && "teams".equals(segments[0]);
     var channel =
-        teamPath ? "notify:team:" + segments[1] : "notify:user:" + userDetails.getUserId();
+        teamPath
+            ? RefreshUiNotifier.teamChannel(segments[1])
+            : RefreshUiNotifier.userChannel(userDetails.getUserId());
     var variables = pathVariables(request);
     var queryKeys =
         refresh == null
