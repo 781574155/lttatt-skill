@@ -98,7 +98,8 @@
 - 现有实体倾向使用显式外键 id 字段，不使用复杂 JPA 关联映射；新增模型优先延续这个风格。
 - Repository 通常继承 `JpaRepository<Entity, Integer>`；复杂查询优先使用 JPQL `@Query`、Specification 或投影 DTO。
 - Redis KV 放 `eao/redis/`，Mongo 文档放 `eao/mongo/`，按已有 Spring Data 注解组织。
-- 新增时间字段优先使用 `LocalDateTime`，命名沿用 `createTime`、`updateTime`。
+- 所有 Entity、Req、Resp 中的时间字段和 REST 接口的时间查询参数统一使用 `LocalDateTime`，时间字段命名沿用 `createTime`、`updateTime`。
+- 数据库中存储时间的列统一使用 `DATETIME`。
 
 ## 拖动排序
 
